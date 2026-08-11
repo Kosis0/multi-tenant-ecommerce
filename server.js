@@ -229,8 +229,8 @@ app.post('/api/orders', resolveTenant, async (req, res, next) => {
     }
 
     const orderRes = await client.query(
-      "INSERT INTO orders (tenant_id, total_amount, status) VALUES ($1, $2, 'pending') RETURNING *",
-      [req.tenant.id, total_amount]
+  "INSERT INTO orders (tenant_id, total_amount, status, created_at) VALUES ($1, $2, 'pending', NOW()) RETURNING *",
+  [req.tenant.id, total_amount]
     );
     const order = orderRes.rows[0];
 
