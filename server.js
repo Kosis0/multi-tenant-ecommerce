@@ -10,7 +10,11 @@ const PORT = process.env.PORT || 5000;
 
 app.use(express.json());
 app.use(cors({
-  origin: process.env.CLIENT_URL || 'http://localhost:3000',
+  origin: [
+    'http://localhost:3000',
+    'https://multi-tenant-ecommerce-nine.vercel.app',
+    process.env.CLIENT_URL
+  ].filter(Boolean),
   credentials: true
 }));
 
