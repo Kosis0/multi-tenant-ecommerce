@@ -97,7 +97,7 @@ export default function AdminDashboard() {
       ]);
 
       const productsData = productsRes.data?.products || productsRes.products || [];
-      const ordersData = ordersRes.data?.orders || ordersRes.orders || [];
+      const ordersData = Array.isArray(ordersRes.data) ? ordersRes.data : (ordersRes.data?.orders || ordersRes.orders || []);
 
       setProducts(productsData);
       setOrders(ordersData);
