@@ -65,6 +65,8 @@ export default function AdminDashboard() {
     setStats({ revenue: 0, totalOrders: 0, activeProducts: 0 });
   };
 
+  const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
+
   const authFetch = async (url, options = {}) => {
     const headers = {
       'Content-Type': 'application/json',
@@ -72,7 +74,7 @@ export default function AdminDashboard() {
       ...options.headers,
     };
 
-    const response = await fetch(`http://localhost:5000${url}`, {
+    const response = await fetch(`${API_URL}${url}`, {
       ...options,
       headers,
     });
@@ -121,7 +123,7 @@ export default function AdminDashboard() {
     setLoginLoading(true);
 
     try {
-      const res = await fetch(`http://localhost:5000/api/auth/login`, {
+      const res = await fetch(`${API_URL}/api/auth/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: loginEmail, password: loginPassword, tenantSlug })

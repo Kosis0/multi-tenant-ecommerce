@@ -16,10 +16,12 @@ export default function StorefrontPage({ params }) {
   
   const [toasts, setToasts] = useState([]);
 
+  const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
+
   useEffect(() => {
     async function fetchProducts() {
       try {
-        const res = await fetch(`http://localhost:5000/api/products?tenant=${tenant}`);
+        const res = await fetch(`${API_URL}/api/products?tenant=${tenant}`);
         if (!res.ok) {
           throw new Error('Store not found');
         }
@@ -37,7 +39,7 @@ export default function StorefrontPage({ params }) {
       }
     }
     fetchProducts();
-  }, [tenant]);
+  }, [tenant, API_URL]);
 
   const addToast = (message, type = 'success') => {
     const id = Date.now();
@@ -94,7 +96,7 @@ export default function StorefrontPage({ params }) {
 
   const placeOrder = async () => {
     try {
-      const res = await fetch(`http://localhost:5000/api/orders?tenant=${tenant}`, {
+      const res = await fetch(`${API_URL}/api/orders?tenant=${tenant}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
