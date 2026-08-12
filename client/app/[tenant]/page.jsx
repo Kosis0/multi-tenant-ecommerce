@@ -118,6 +118,13 @@ export default function StorefrontPage({ params }) {
       if (exists) {
         addToast('Removed from Wishlist', 'info');
         return prev.filter(id => id !== productId);
+      } else {
+        addToast('Added to Wishlist!', 'success');
+        return [...prev, productId];
+      }
+    });
+  };
+
   // Review Handlers
   const openReviewModal = async (product) => {
     setReviewProduct(product);
