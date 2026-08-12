@@ -83,7 +83,7 @@ export default function RegisterStore() {
 
       <div className="max-w-md w-full">
         <div className="mb-8 text-center">
-          <div className="w-12 h-12 rounded-xl bg-[#db4444] text-white font-bold text-2xl flex items-center justify-center mx-auto mb-4 shadow-lg shadow-[#db4444]/30">
+          <div className="w-12 h-12 rounded-xl bg-[#db4444] text-white font-bold text-2xl flex items-center justify-center mx-auto mb-4 border border-[#e53838]">
             M
           </div>
           <h1 className="text-3xl font-extrabold tracking-tight mb-2">Create your store</h1>
@@ -168,7 +168,7 @@ export default function RegisterStore() {
             <button
               type="submit"
               disabled={loading}
-              className="press w-full bg-[#db4444] hover:bg-[#e53838] text-white py-3 rounded-lg text-sm font-semibold uppercase tracking-wider transition-all disabled:opacity-50 shadow-lg shadow-[#db4444]/20 flex justify-center items-center"
+              className="press w-full bg-[#db4444] hover:bg-[#e53838] text-white py-3 rounded-lg text-sm font-semibold uppercase tracking-wider transition-all disabled:opacity-50 flex justify-center items-center"
             >
               {loading ? (
                 <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>

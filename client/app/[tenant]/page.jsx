@@ -496,7 +496,7 @@ export default function StorefrontPage({ params }) {
                   onClick={() => { setSelectedCategory(cat.name); scrollToProducts(); setIsMobileMenuOpen(false); }}
                   className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-xs font-medium transition-all ${
                     selectedCategory.toLowerCase() === cat.name.toLowerCase()
-                      ? 'bg-[#db4444]/10 text-[#db4444] border border-[#db4444]/30'
+                      ? 'bg-[#db4444] text-white'
                       : 'text-[#a1a1aa] hover:text-white hover:bg-[#1c1c28]'
                   }`}
                 >
@@ -511,7 +511,7 @@ export default function StorefrontPage({ params }) {
               <a
                 href="#flash-sales"
                 onClick={() => setIsMobileMenuOpen(false)}
-                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-xs font-medium text-[#a1a1aa] hover:text-white hover:bg-[#1c1c28] transition-all"
+                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-xs font-medium text-[#a1a1aa] hover:text-white hover:bg-[#1c1c28]"
               >
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
                 Flash Sales
@@ -519,7 +519,7 @@ export default function StorefrontPage({ params }) {
               
               <button
                 onClick={() => { setIsWishlistOpen(true); setIsMobileMenuOpen(false); }}
-                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-xs font-medium text-[#a1a1aa] hover:text-white hover:bg-[#1c1c28] transition-all"
+                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-xs font-medium text-[#a1a1aa] hover:text-white hover:bg-[#1c1c28]"
               >
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
                 Wishlist ({wishlistCount})
@@ -527,7 +527,7 @@ export default function StorefrontPage({ params }) {
 
               <button
                 onClick={() => { setIsCartOpen(true); setIsMobileMenuOpen(false); }}
-                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-xs font-medium text-[#a1a1aa] hover:text-white hover:bg-[#1c1c28] transition-all"
+                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-xs font-medium text-[#a1a1aa] hover:text-white hover:bg-[#1c1c28]"
               >
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg>
                 Cart ({cartItemsCount})
@@ -545,14 +545,14 @@ export default function StorefrontPage({ params }) {
       {/* Main Content Area */}
       <main className="flex-1 max-w-6xl mx-auto px-4 sm:px-6 py-6 w-full space-y-12">
         
-        {/* HERO BANNER SECTION (Figma Style) */}
-        <section className="relative rounded-2xl overflow-hidden bg-gradient-to-r from-[#141418] via-[#1c1c28] to-[#09090b] border border-[#272734] p-6 sm:p-12 flex flex-col md:flex-row items-center justify-between gap-8">
+        {/* HERO BANNER SECTION */}
+        <section className="relative rounded-2xl bg-[#141418] border border-[#272734] p-6 sm:p-12 flex flex-col md:flex-row items-center justify-between gap-8">
           <div className="max-w-md space-y-4 text-center md:text-left z-10">
             <div className="flex items-center justify-center md:justify-start gap-2 text-[#a1a1aa] text-xs uppercase font-mono tracking-widest">
-              <span className="text-[#db4444] font-bold">●</span> iPhone 14 Series / Tech Collection
+              <span className="text-[#db4444] font-bold">●</span> Exclusive Collection
             </div>
             <h2 className="text-3xl sm:text-5xl font-extrabold tracking-tight text-white leading-tight">
-              Up to 10% off<br />Voucher Coupon
+              Premium Tech & Lifestyle
             </h2>
             <p className="text-xs sm:text-sm text-[#a1a1aa]">
               Discover premium gadgets, fashion, and lifestyle items curated specifically for your store.
@@ -560,34 +560,30 @@ export default function StorefrontPage({ params }) {
             <div className="pt-2">
               <a 
                 href="#products-grid" 
-                className="press inline-flex items-center gap-2 px-6 py-3 bg-[#db4444] hover:bg-[#e53838] text-white text-xs font-bold uppercase tracking-wider rounded-lg shadow-lg shadow-[#db4444]/25 transition-all"
+                className="inline-flex items-center gap-2 px-6 py-3 bg-[#db4444] hover:bg-[#e53838] text-white text-xs font-bold uppercase tracking-wider rounded-lg transition-all"
               >
                 Shop Now →
               </a>
             </div>
           </div>
 
-          {/* Hero Decorative Visual */}
           <div className="relative w-full max-w-xs aspect-square flex items-center justify-center">
-            <div className="absolute inset-0 bg-[#db4444]/20 rounded-full blur-3xl"></div>
-            <div className="relative w-48 h-48 sm:w-64 sm:h-64 rounded-2xl bg-[#181824] border border-[#272734] p-4 flex flex-col items-center justify-center text-center shadow-2xl">
-              <div className="w-12 h-12 rounded-xl bg-[#db4444]/20 border border-[#db4444]/30 text-[#db4444] flex items-center justify-center mb-3">
+            <div className="relative w-48 h-48 sm:w-64 sm:h-64 rounded-2xl bg-[#09090b] border border-[#272734] p-4 flex flex-col items-center justify-center text-center">
+              <div className="w-12 h-12 rounded-xl bg-[#141418] border border-[#272734] text-[#db4444] flex items-center justify-center mb-3">
                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
               </div>
               <span className="text-sm font-mono font-bold text-white">Exclusive Deals</span>
               <span className="text-xs text-[#a1a1aa] mt-1">Available in Naira (₦)</span>
-              <div className="mt-3 px-3 py-1 bg-[#db4444]/20 text-[#db4444] text-[10px] font-bold rounded-full border border-[#db4444]/30">
+              <div className="mt-3 px-3 py-1 bg-[#141418] text-[#db4444] text-[10px] font-bold rounded-full border border-[#272734]">
                 Save Big Today
               </div>
             </div>
           </div>
         </section>
 
-        {/* FLASH SALES SECTION (Figma Style with Live Countdown Timer) */}
+        {/* FLASH SALES SECTION */}
         <section id="flash-sales" className="space-y-6 pt-4">
           <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 border-b border-[#272734] pb-4">
-            
-            {/* Header Title with Red Bar */}
             <div className="space-y-1">
               <div className="flex items-center gap-2 text-xs font-bold uppercase text-[#db4444]">
                 <span className="w-3 h-7 bg-[#db4444] rounded-sm inline-block"></span>
@@ -596,7 +592,6 @@ export default function StorefrontPage({ params }) {
               <h2 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-white">Flash Sales</h2>
             </div>
 
-            {/* Countdown Clock Display */}
             <div className="flex items-center gap-2 text-center font-mono">
               <div className="bg-[#141418] border border-[#272734] rounded-lg px-3 py-1.5 min-w-[50px]">
                 <span className="text-xs text-[#a1a1aa] block uppercase text-[9px]">Days</span>
@@ -620,11 +615,10 @@ export default function StorefrontPage({ params }) {
             </div>
           </div>
 
-          {/* Flash Sales Product Carousel / Grid */}
           {loading ? (
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
               {[...Array(4)].map((_, i) => (
-                <div key={i} className="skeleton h-64 rounded-xl border border-[#272734]"></div>
+                <div key={i} className="h-64 rounded-xl border border-[#272734] bg-[#141418]"></div>
               ))}
             </div>
           ) : (
@@ -639,20 +633,18 @@ export default function StorefrontPage({ params }) {
                 const discountPercent = product.discount_percent || (calculatedPercent > 0 ? calculatedPercent : 20);
 
                 return (
-                  <div key={product.id} className="group relative bg-[#141418] border border-[#272734] rounded-xl overflow-hidden hover:border-[#db4444]/60 transition-all duration-300 flex flex-col">
+                  <div key={product.id} className="group relative bg-[#141418] border border-[#272734] rounded-xl overflow-hidden flex flex-col">
                     
-                    {/* Discount Badge */}
                     <div className="absolute top-3 left-3 z-10 bg-[#db4444] text-white text-[10px] font-bold px-2 py-0.5 rounded">
                       -{discountPercent}% OFF
                     </div>
 
-                    {/* Wishlist Toggle Heart */}
                     <button 
                       onClick={() => toggleWishlist(product.id)}
                       className={`absolute top-3 right-3 z-10 p-1.5 rounded-full border transition-all ${
                         isWishlisted 
-                          ? 'bg-[#db4444] border-[#db4444] text-white animate-heart' 
-                          : 'bg-[#09090b]/60 border-[#272734] text-[#a1a1aa] hover:text-white'
+                          ? 'bg-[#db4444] border-[#db4444] text-white' 
+                          : 'bg-[#09090b] border-[#272734] text-[#a1a1aa] hover:text-white'
                       }`}
                     >
                       <svg width="14" height="14" viewBox="0 0 24 24" fill={isWishlisted ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="2">
@@ -660,61 +652,39 @@ export default function StorefrontPage({ params }) {
                       </svg>
                     </button>
 
-                    {/* Product Image Area — Clickable for Product Detail Modal */}
                     <div 
                       onClick={() => openProductDetail(product)}
-                      className="aspect-square relative overflow-hidden bg-[#181824] p-4 flex items-center justify-center cursor-pointer"
+                      className="aspect-square relative overflow-hidden bg-[#09090b] flex items-center justify-center cursor-pointer"
                     >
                       {product.image_url ? (
-                        <img 
-                          src={product.image_url} 
-                          alt={product.title} 
-                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                        />
+                        <img src={product.image_url} alt={product.title} className="w-full h-full object-cover" />
                       ) : (
-                        <div className="w-full h-full bg-[#1c1c28] flex flex-col items-center justify-center text-center p-4">
-                          <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-[#a1a1aa] mb-1"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
-                          <span className="text-[10px] text-[#a1a1aa] font-mono">{product.category || 'Item'}</span>
-                        </div>
+                        <div className="text-[#a1a1aa] text-[10px] font-mono">{product.category || 'Item'}</div>
                       )}
 
-                      {/* Hover Overlay "Add to Cart" Button */}
-                      <div className="absolute inset-x-0 bottom-0 p-2 bg-gradient-to-t from-black/80 to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                      <div className="absolute inset-x-0 bottom-0 p-2 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                         <button 
-                          onClick={() => addToCart(product)}
+                          onClick={(e) => { e.stopPropagation(); addToCart(product); }}
                           disabled={product.stock === 0}
-                          className="w-full py-2 bg-[#db4444] hover:bg-[#e53838] text-white text-xs font-bold uppercase tracking-wider rounded shadow-md transition-colors disabled:opacity-50"
+                          className="w-full py-2 bg-[#db4444] hover:bg-[#e53838] text-white text-xs font-bold uppercase rounded transition-colors disabled:opacity-50"
                         >
                           {product.stock > 0 ? 'Add To Cart' : 'Out of Stock'}
                         </button>
                       </div>
                     </div>
 
-                    {/* Product Info */}
                     <div className="p-4 flex flex-col flex-1">
-                      <h3 
-                        onClick={() => openProductDetail(product)}
-                        className="text-xs sm:text-sm font-semibold text-white truncate mb-1 cursor-pointer hover:text-[#db4444] transition-colors"
-                      >
+                      <h3 className="text-xs sm:text-sm font-semibold text-white truncate mb-1 cursor-pointer hover:text-[#db4444]" onClick={() => openProductDetail(product)}>
                         {product.title}
                       </h3>
-                      
-                      {/* Price in Naira (₦) */}
                       <div className="flex items-center gap-2 mb-2 font-mono text-xs sm:text-sm">
                         <span className="text-[#db4444] font-bold">{formatNaira(product.price)}</span>
                         <span className="text-[#a1a1aa] line-through text-[11px]">{formatNaira(originalPrice)}</span>
                       </div>
-
-                      {/* Rating Stars & Count — Clickable for Customer Reviews */}
-                      <button 
-                        onClick={() => openReviewModal(product)}
-                        className="flex items-center gap-1.5 mt-auto text-[11px] text-[#a1a1aa] hover:text-white transition-colors group/review text-left"
-                      >
+                      <div className="flex items-center gap-1.5 mt-auto text-[11px] text-[#a1a1aa]">
                         <div className="flex text-amber-400">★★★★☆</div>
-                        <span className="underline decoration-[#272734] group-hover/review:decoration-[#db4444]">
-                          ({product.review_count || 12} reviews)
-                        </span>
-                      </button>
+                        <span>({product.review_count || 12} reviews)</span>
+                      </div>
                     </div>
                   </div>
                 );
@@ -723,7 +693,7 @@ export default function StorefrontPage({ params }) {
           )}
         </section>
 
-        {/* BROWSE BY CATEGORY SECTION (Figma Style) */}
+        {/* BROWSE BY CATEGORY SECTION */}
         <section className="space-y-6 pt-4 border-t border-[#272734]">
           <div className="space-y-1">
             <div className="flex items-center gap-2 text-xs font-bold uppercase text-[#db4444]">
@@ -733,14 +703,13 @@ export default function StorefrontPage({ params }) {
             <h2 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-white">Browse By Category</h2>
           </div>
 
-          {/* Category Pills Bar */}
           <div className="flex items-center gap-3 overflow-x-auto no-scrollbar pb-2">
             <button
               onClick={() => setSelectedCategory('All')}
-              className={`flex items-center gap-2 px-5 py-3 rounded-xl border text-xs font-semibold uppercase tracking-wider whitespace-nowrap transition-all ${
+              className={`flex items-center gap-2 px-5 py-3 rounded-xl border text-xs font-semibold uppercase whitespace-nowrap transition-all ${
                 selectedCategory === 'All'
-                  ? 'bg-[#db4444] border-[#db4444] text-white shadow-lg shadow-[#db4444]/20'
-                  : 'bg-[#141418] border-[#272734] text-[#a1a1aa] hover:text-white hover:border-[#db4444]/40'
+                  ? 'bg-[#db4444] border-[#db4444] text-white'
+                  : 'bg-[#141418] border-[#272734] text-[#a1a1aa] hover:text-white hover:border-[#3f3f50]'
               }`}
             >
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
@@ -751,10 +720,10 @@ export default function StorefrontPage({ params }) {
               <button
                 key={cat.id}
                 onClick={() => setSelectedCategory(cat.name)}
-                className={`flex items-center gap-2 px-5 py-3 rounded-xl border text-xs font-semibold uppercase tracking-wider whitespace-nowrap transition-all ${
+                className={`flex items-center gap-2 px-5 py-3 rounded-xl border text-xs font-semibold uppercase whitespace-nowrap transition-all ${
                   selectedCategory.toLowerCase() === cat.name.toLowerCase()
-                    ? 'bg-[#db4444] border-[#db4444] text-white shadow-lg shadow-[#db4444]/20'
-                    : 'bg-[#141418] border-[#272734] text-[#a1a1aa] hover:text-white hover:border-[#db4444]/40'
+                    ? 'bg-[#db4444] border-[#db4444] text-white'
+                    : 'bg-[#141418] border-[#272734] text-[#a1a1aa] hover:text-white hover:border-[#3f3f50]'
                 }`}
               >
                 {renderCategoryIcon(cat.name)}
@@ -776,78 +745,45 @@ export default function StorefrontPage({ params }) {
 
           {filteredProducts.length === 0 ? (
             <div className="text-center py-16 bg-[#141418] border border-[#272734] rounded-xl">
-              <div className="w-12 h-12 rounded-full bg-[#181824] text-[#a1a1aa] flex items-center justify-center mx-auto mb-2">
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-              </div>
-              <h3 className="text-sm font-semibold text-white">No products found</h3>
-              <p className="text-xs text-[#a1a1aa] mt-1">Try selecting another category or clear your search query.</p>
+              <p className="text-xs text-[#a1a1aa]">No products found in this category.</p>
             </div>
           ) : (
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6">
               {filteredProducts.map(product => {
                 const isWishlisted = wishlist.includes(product.id);
                 return (
-                  <div key={product.id} className="group relative bg-[#141418] border border-[#272734] rounded-xl overflow-hidden hover:border-[#db4444]/60 transition-all duration-300 flex flex-col">
-                    
-                    {/* Wishlist Toggle Heart */}
+                  <div key={product.id} className="group relative bg-[#141418] border border-[#272734] rounded-xl overflow-hidden flex flex-col">
                     <button 
                       onClick={() => toggleWishlist(product.id)}
                       className={`absolute top-3 right-3 z-10 p-1.5 rounded-full border transition-all ${
-                        isWishlisted 
-                          ? 'bg-[#db4444] border-[#db4444] text-white animate-heart' 
-                          : 'bg-[#09090b]/60 border-[#272734] text-[#a1a1aa] hover:text-white'
+                        isWishlisted ? 'bg-[#db4444] border-[#db4444] text-white' : 'bg-[#09090b] border-[#272734] text-[#a1a1aa]'
                       }`}
                     >
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill={isWishlisted ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="2">
-                        <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
-                      </svg>
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill={isWishlisted ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="2"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
                     </button>
 
-                    {/* Image Area — Clickable */}
-                    <div 
-                      onClick={() => openProductDetail(product)}
-                      className="aspect-square relative overflow-hidden bg-[#181824] p-4 flex items-center justify-center cursor-pointer"
-                    >
+                    <div onClick={() => openProductDetail(product)} className="aspect-square relative overflow-hidden bg-[#09090b] flex items-center justify-center cursor-pointer">
                       {product.image_url ? (
-                        <img 
-                          src={product.image_url} 
-                          alt={product.title} 
-                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                        />
+                        <img src={product.image_url} alt={product.title} className="w-full h-full object-cover" />
                       ) : (
-                        <div className="w-full h-full bg-[#1c1c28] flex flex-col items-center justify-center text-center p-4">
-                          <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-[#a1a1aa] mb-1"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
-                          <span className="text-[10px] text-[#a1a1aa] font-mono">{product.category || 'General'}</span>
-                        </div>
+                        <div className="text-[#a1a1aa] text-[10px] font-mono">{product.category || 'Product'}</div>
                       )}
-
-                      {/* Add To Cart Hover Button */}
-                      <div className="absolute inset-x-0 bottom-0 p-2 bg-gradient-to-t from-black/80 to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                      <div className="absolute inset-x-0 bottom-0 p-2 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                         <button 
-                          onClick={() => addToCart(product)}
+                          onClick={(e) => { e.stopPropagation(); addToCart(product); }}
                           disabled={product.stock === 0}
-                          className="w-full py-2 bg-[#db4444] hover:bg-[#e53838] text-white text-xs font-bold uppercase tracking-wider rounded shadow-md transition-colors disabled:opacity-50"
+                          className="w-full py-2 bg-[#db4444] hover:bg-[#e53838] text-white text-xs font-bold uppercase rounded disabled:opacity-50"
                         >
                           {product.stock > 0 ? 'Add To Cart' : 'Out of Stock'}
                         </button>
                       </div>
                     </div>
 
-                    {/* Details */}
                     <div className="p-4 flex flex-col flex-1">
-                      <h3 
-                        onClick={() => openProductDetail(product)}
-                        className="text-xs sm:text-sm font-semibold text-white truncate mb-1 cursor-pointer hover:text-[#db4444] transition-colors"
-                      >
-                        {product.title}
-                      </h3>
+                      <h3 className="text-xs sm:text-sm font-semibold text-white truncate mb-1 cursor-pointer" onClick={() => openProductDetail(product)}>{product.title}</h3>
                       <div className="flex items-center justify-between mb-2">
                         <span className="text-xs sm:text-sm font-bold font-mono text-[#db4444]">{formatNaira(product.price)}</span>
                         <span className="text-[10px] text-[#a1a1aa] font-mono">{product.stock > 0 ? `${product.stock} left` : 'Sold out'}</span>
-                      </div>
-                      <div className="flex items-center gap-1.5 mt-auto text-[11px] text-[#a1a1aa]">
-                        <div className="flex text-amber-400">★★★★☆</div>
-                        <span>(35)</span>
                       </div>
                     </div>
                   </div>
@@ -857,30 +793,25 @@ export default function StorefrontPage({ params }) {
           )}
         </section>
 
-        {/* TRUST BADGES SECTION (Figma Style) */}
+        {/* TRUST BADGES SECTION */}
         <section className="grid grid-cols-1 md:grid-cols-3 gap-6 pt-6 border-t border-[#272734] text-center">
           <div className="p-6 bg-[#141418] border border-[#272734] rounded-xl flex flex-col items-center">
-            <div className="w-12 h-12 rounded-full bg-[#181824] border border-[#272734] flex items-center justify-center mb-3 text-[#db4444]">
+            <div className="w-12 h-12 rounded-full bg-[#09090b] border border-[#272734] flex items-center justify-center mb-3 text-[#db4444]">
               <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="1" y="3" width="15" height="13"/><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>
             </div>
-            <h4 className="text-sm font-bold text-white uppercase tracking-wider mb-1">FREE AND FAST DELIVERY</h4>
-            <p className="text-xs text-[#a1a1aa]">Free delivery for all orders over ₦50,000</p>
+            <h4 className="text-sm font-bold text-white uppercase tracking-wider mb-1">FREE DELIVERY</h4>
           </div>
-
           <div className="p-6 bg-[#141418] border border-[#272734] rounded-xl flex flex-col items-center">
-            <div className="w-12 h-12 rounded-full bg-[#181824] border border-[#272734] flex items-center justify-center mb-3 text-[#db4444]">
+            <div className="w-12 h-12 rounded-full bg-[#09090b] border border-[#272734] flex items-center justify-center mb-3 text-[#db4444]">
               <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 18v-6a9 9 0 0 1 18 0v6"/><path d="M21 19a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3zM3 19a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3z"/></svg>
             </div>
-            <h4 className="text-sm font-bold text-white uppercase tracking-wider mb-1">24/7 CUSTOMER SERVICE</h4>
-            <p className="text-xs text-[#a1a1aa]">Friendly 24/7 customer support</p>
+            <h4 className="text-sm font-bold text-white uppercase tracking-wider mb-1">24/7 SUPPORT</h4>
           </div>
-
           <div className="p-6 bg-[#141418] border border-[#272734] rounded-xl flex flex-col items-center">
-            <div className="w-12 h-12 rounded-full bg-[#181824] border border-[#272734] flex items-center justify-center mb-3 text-[#db4444]">
+            <div className="w-12 h-12 rounded-full bg-[#09090b] border border-[#272734] flex items-center justify-center mb-3 text-[#db4444]">
               <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><polyline points="9 12 11 14 15 10"/></svg>
             </div>
-            <h4 className="text-sm font-bold text-white uppercase tracking-wider mb-1">MONEY BACK GUARANTEE</h4>
-            <p className="text-xs text-[#a1a1aa]">We return money within 30 days</p>
+            <h4 className="text-sm font-bold text-white uppercase tracking-wider mb-1">MONEY BACK</h4>
           </div>
         </section>
 
@@ -891,10 +822,10 @@ export default function StorefrontPage({ params }) {
         <div className="fixed inset-0 z-50 flex justify-end">
           <div className="fixed inset-0 bg-black/70 backdrop-blur-sm" onClick={() => setIsCartOpen(false)}></div>
           
-          <div className="relative w-full max-w-md bg-[#141418] border-l border-[#272734] h-full flex flex-col z-10 shadow-2xl animate-in slide-in-from-right duration-300">
+          <div className="relative w-full max-w-md bg-[#141418] border-l border-[#272734] h-full flex flex-col z-10">
             <div className="p-5 border-b border-[#272734] flex items-center justify-between">
               <div>
-                <h3 className="text-base font-bold text-white capitalize">{getStoreDisplayName()} Cart</h3>
+                <h3 className="text-base font-bold text-white">Your Cart</h3>
                 <p className="text-xs text-[#a1a1aa] font-mono">{cartItemsCount} item(s)</p>
               </div>
               <button onClick={() => setIsCartOpen(false)} className="p-2 text-[#a1a1aa] hover:text-white">✕</button>
@@ -902,37 +833,21 @@ export default function StorefrontPage({ params }) {
 
             <div className="flex-1 overflow-y-auto p-5 space-y-4">
               {cart.length === 0 ? (
-                <div className="text-center py-12 text-[#a1a1aa]">
-                  <div className="w-12 h-12 rounded-full bg-[#181824] text-[#a1a1aa] flex items-center justify-center mx-auto mb-2">
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg>
-                  </div>
-                  <p className="text-sm font-semibold text-white">Your cart is empty</p>
-                </div>
+                <div className="text-center py-12 text-[#a1a1aa]">Cart is empty</div>
               ) : (
                 cart.map(item => (
-                  <div key={item.product_id} className="flex items-center justify-between gap-3 p-3 bg-[#181824] border border-[#272734] rounded-xl">
-                    <div className="w-12 h-12 rounded-lg bg-[#09090b] overflow-hidden border border-[#272734] flex items-center justify-center">
-                      {item.image_url ? (
-                        <img src={item.image_url} alt={item.title} className="w-full h-full object-cover" />
-                      ) : (
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-[#a1a1aa]"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>
-                      )}
+                  <div key={item.product_id} className="flex items-center justify-between gap-3 p-3 bg-[#09090b] border border-[#272734] rounded-xl">
+                    <div className="w-12 h-12 rounded-lg bg-[#141418] border border-[#272734] overflow-hidden">
+                      {item.image_url && <img src={item.image_url} alt={item.title} className="w-full h-full object-cover" />}
                     </div>
-                    
                     <div className="flex-1 min-w-0">
                       <h4 className="text-xs font-semibold text-white truncate">{item.title}</h4>
                       <span className="text-xs font-mono text-[#db4444]">{formatNaira(item.price)}</span>
-                      
                       <div className="flex items-center gap-2 mt-2">
-                        <button onClick={() => updateQuantity(item.product_id, -1)} className="px-2 py-0.5 bg-[#272734] rounded text-xs">-</button>
-                        <span className="text-xs font-mono">{item.quantity}</span>
-                        <button onClick={() => updateQuantity(item.product_id, 1)} className="px-2 py-0.5 bg-[#272734] rounded text-xs">+</button>
-                        <button onClick={() => removeFromCart(item.product_id)} className="text-[10px] text-red-400 ml-2">Remove</button>
+                        <button onClick={() => updateQuantity(item.product_id, -1)} className="px-2 bg-[#272734] rounded text-xs">-</button>
+                        <span className="text-xs">{item.quantity}</span>
+                        <button onClick={() => updateQuantity(item.product_id, 1)} className="px-2 bg-[#272734] rounded text-xs">+</button>
                       </div>
-                    </div>
-
-                    <div className="text-xs font-mono font-bold text-white">
-                      {formatNaira(item.price * item.quantity)}
                     </div>
                   </div>
                 ))
@@ -941,22 +856,24 @@ export default function StorefrontPage({ params }) {
 
             {cart.length > 0 && (
               <div className="p-5 border-t border-[#272734] bg-[#09090b] space-y-3">
-                <div className="flex justify-between text-sm font-semibold">
-                  <span className="text-[#a1a1aa]">Total (NGN)</span>
-                  <span className="font-mono text-[#db4444] text-base font-extrabold">{formatNaira(cartTotal)}</span>
+                <div className="pt-4 border-t border-[#272734] space-y-3">
+                  <div className="flex items-center justify-between text-sm font-bold">
+                    <span className="text-[#a1a1aa]">Total:</span>
+                    <span className="text-lg font-mono text-[#db4444]">{formatNaira(cartTotal)}</span>
+                  </div>
+
+                  <button
+                    onClick={initiatePayment}
+                    disabled={paymentLoading}
+                    className="press w-full py-3 bg-[#db4444] hover:bg-[#e53838] text-white font-bold text-xs uppercase tracking-wider rounded-lg shadow-sm transition-all flex items-center justify-center"
+                  >
+                    {paymentLoading ? (
+                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                    ) : (
+                      'Proceed to Checkout (Stripe NGN)'
+                    )}
+                  </button>
                 </div>
-                
-                <button 
-                  onClick={initiatePayment}
-                  disabled={paymentLoading}
-                  className="press w-full py-3 bg-[#db4444] hover:bg-[#e53838] text-white font-bold text-xs uppercase tracking-wider rounded-lg shadow-lg shadow-[#db4444]/30 transition-all flex items-center justify-center"
-                >
-                  {paymentLoading ? (
-                    <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                  ) : (
-                    'Proceed to Payment (Stripe NGN ₦)'
-                  )}
-                </button>
               </div>
             )}
           </div>
@@ -1167,7 +1084,7 @@ export default function StorefrontPage({ params }) {
                     <button
                       onClick={() => { addToCart(selectedDetailProduct); }}
                       disabled={selectedDetailProduct.stock === 0}
-                      className="press flex-1 py-3 bg-[#db4444] hover:bg-[#e53838] text-white font-bold text-xs uppercase tracking-wider rounded-lg shadow-lg shadow-[#db4444]/20 transition-all disabled:opacity-50"
+                      className="press flex-1 py-3 bg-[#db4444] hover:bg-[#e53838] text-white font-bold text-xs uppercase tracking-wider rounded-lg shadow-sm transition-all disabled:opacity-50"
                     >
                       {selectedDetailProduct.stock > 0 ? 'Add To Cart' : 'Out of Stock'}
                     </button>

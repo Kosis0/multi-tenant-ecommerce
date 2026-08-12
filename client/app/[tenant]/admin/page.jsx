@@ -420,7 +420,7 @@ export default function AdminDashboard() {
     return (
       <div className="min-h-screen bg-[#09090b] text-[#fafafa] flex flex-col items-center justify-center p-6">
         <div className="w-full max-w-sm bg-[#141418] border border-[#272734] rounded-2xl p-8 shadow-2xl">
-          <div className="w-12 h-12 rounded-xl bg-[#db4444] text-white font-bold text-2xl flex items-center justify-center mx-auto mb-4 shadow-lg shadow-[#db4444]/30">
+          <div className="w-12 h-12 rounded-xl bg-[#db4444] text-white font-bold text-2xl flex items-center justify-center mx-auto mb-4 border border-[#e53838]">
             M
           </div>
           
@@ -459,7 +459,7 @@ export default function AdminDashboard() {
             <button
               type="submit"
               disabled={loginLoading}
-              className="press w-full bg-[#db4444] hover:bg-[#e53838] text-white py-3 rounded-lg text-xs font-bold uppercase tracking-wider transition-all disabled:opacity-50 mt-2 flex justify-center items-center shadow-lg shadow-[#db4444]/20"
+              className="press w-full bg-[#db4444] hover:bg-[#e53838] text-white py-3 rounded-lg text-xs font-bold uppercase tracking-wider transition-all disabled:opacity-50 mt-2 flex justify-center items-center"
             >
               {loginLoading ? (
                 <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
