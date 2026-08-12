@@ -1,6 +1,6 @@
 'use client';
 
-import { use, useEffect, useState } from 'react';
+import { use, useEffect, useState, useRef } from 'react';
 
 export default function StorefrontPage({ params }) {
   const unwrappedParams = use(params);
@@ -20,6 +20,21 @@ export default function StorefrontPage({ params }) {
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [isWishlistOpen, setIsWishlistOpen] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const productsGridRef = useRef(null);
+
+  // Scroll to products grid (used when searching)
+  const scrollToProducts = () => {
+    setTimeout(() => {
+      productsGridRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 100);
+  };
+
+  const handleSearchKeyDown = (e) => {
+    if (e.key === 'Enter' && searchQuery.trim()) {
+      scrollToProducts();
+      setIsMobileMenuOpen(false);
+    }
+  };
 
   // Payment Modal Scaffolding State
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
@@ -299,9 +314,12 @@ export default function StorefrontPage({ params }) {
               placeholder="What are you looking for?"
               value={searchQuery}
               onChange={e => setSearchQuery(e.target.value)}
+              onKeyDown={handleSearchKeyDown}
               className="w-full bg-[#141418] border border-[#272734] rounded-lg pl-3.5 pr-9 py-1.5 text-xs text-white placeholder-[#a1a1aa] outline-none focus:border-[#db4444] transition-colors"
             />
-            <svg className="w-4 h-4 absolute right-3 top-2.5 text-[#a1a1aa]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+            <button onClick={scrollToProducts} className="absolute right-3 top-2.5 text-[#a1a1aa] hover:text-white transition-colors">
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+            </button>
           </div>
 
           {/* Nav Icons: Wishlist, Cart & Admin Link */}
@@ -339,15 +357,125 @@ export default function StorefrontPage({ params }) {
 
         {/* Mobile Search Bar */}
         <div className="sm:hidden px-4 pb-3">
-          <input 
-            type="text" 
-            placeholder="Search store products..."
-            value={searchQuery}
-            onChange={e => setSearchQuery(e.target.value)}
-            className="w-full bg-[#141418] border border-[#272734] rounded-lg px-3.5 py-2 text-xs text-white placeholder-[#a1a1aa] outline-none focus:border-[#db4444]"
-          />
+          <div className="relative">
+            <input 
+              type="text" 
+              placeholder="Search store products..."
+              value={searchQuery}
+              onChange={e => setSearchQuery(e.target.value)}
+              onKeyDown={handleSearchKeyDown}
+              className="w-full bg-[#141418] border border-[#272734] rounded-lg pl-3.5 pr-9 py-2 text-xs text-white placeholder-[#a1a1aa] outline-none focus:border-[#db4444]"
+            />
+            <button onClick={scrollToProducts} className="absolute right-3 top-2.5 text-[#a1a1aa] hover:text-white transition-colors">
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+            </button>
+          </div>
         </div>
       </header>
+
+      {/* MOBILE NAVIGATION DRAWER */}
+      {isMobileMenuOpen && (
+        <div className="fixed inset-0 z-40 md:hidden">
+          <div className="fixed inset-0 bg-black/70 backdrop-blur-sm" onClick={() => setIsMobileMenuOpen(false)}></div>
+          
+          <div className="fixed inset-y-0 left-0 w-72 max-w-[85vw] bg-[#141418] border-r border-[#272734] z-50 flex flex-col shadow-2xl" style={{ animation: 'slideInLeft 0.3s ease-out' }}>
+            {/* Drawer Header */}
+            <div className="p-5 border-b border-[#272734] flex items-center justify-between">
+              <a href={`/${tenant}`} className="text-lg font-bold tracking-tight capitalize flex items-center gap-2">
+                <span className="w-7 h-7 rounded-lg bg-[#db4444] text-white text-xs font-black flex items-center justify-center">
+                  {getStoreDisplayName().charAt(0)}
+                </span>
+                <span className="text-white">{loading ? '...' : getStoreDisplayName()}</span>
+              </a>
+              <button onClick={() => setIsMobileMenuOpen(false)} className="p-2 text-[#a1a1aa] hover:text-white transition-colors">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+              </button>
+            </div>
+
+            {/* Drawer Search */}
+            <div className="p-4 border-b border-[#272734]">
+              <div className="relative">
+                <input 
+                  type="text" 
+                  placeholder="Search products..."
+                  value={searchQuery}
+                  onChange={e => setSearchQuery(e.target.value)}
+                  onKeyDown={handleSearchKeyDown}
+                  className="w-full bg-[#09090b] border border-[#272734] rounded-lg pl-3.5 pr-9 py-2.5 text-xs text-white placeholder-[#a1a1aa] outline-none focus:border-[#db4444] transition-colors"
+                />
+                <button onClick={() => { scrollToProducts(); setIsMobileMenuOpen(false); }} className="absolute right-3 top-3 text-[#a1a1aa] hover:text-white transition-colors">
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+                </button>
+              </div>
+            </div>
+
+            {/* Drawer Navigation */}
+            <nav className="flex-1 overflow-y-auto p-4 space-y-1">
+              <p className="text-[10px] uppercase tracking-widest text-[#a1a1aa] font-bold mb-3 px-3">Categories</p>
+              
+              <button
+                onClick={() => { setSelectedCategory('All'); scrollToProducts(); setIsMobileMenuOpen(false); }}
+                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-xs font-medium transition-all ${
+                  selectedCategory === 'All'
+                    ? 'bg-[#db4444]/10 text-[#db4444] border border-[#db4444]/30'
+                    : 'text-[#a1a1aa] hover:text-white hover:bg-[#1c1c28]'
+                }`}
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+                All Products
+              </button>
+
+              {categories.map(cat => (
+                <button
+                  key={cat.id}
+                  onClick={() => { setSelectedCategory(cat.name); scrollToProducts(); setIsMobileMenuOpen(false); }}
+                  className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-xs font-medium transition-all ${
+                    selectedCategory.toLowerCase() === cat.name.toLowerCase()
+                      ? 'bg-[#db4444]/10 text-[#db4444] border border-[#db4444]/30'
+                      : 'text-[#a1a1aa] hover:text-white hover:bg-[#1c1c28]'
+                  }`}
+                >
+                  {renderCategoryIcon(cat.name)}
+                  {cat.name}
+                </button>
+              ))}
+
+              <div className="border-t border-[#272734] my-4"></div>
+              <p className="text-[10px] uppercase tracking-widest text-[#a1a1aa] font-bold mb-3 px-3">Quick Links</p>
+              
+              <a
+                href="#flash-sales"
+                onClick={() => setIsMobileMenuOpen(false)}
+                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-xs font-medium text-[#a1a1aa] hover:text-white hover:bg-[#1c1c28] transition-all"
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+                Flash Sales
+              </a>
+              
+              <button
+                onClick={() => { setIsWishlistOpen(true); setIsMobileMenuOpen(false); }}
+                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-xs font-medium text-[#a1a1aa] hover:text-white hover:bg-[#1c1c28] transition-all"
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
+                Wishlist ({wishlistCount})
+              </button>
+
+              <button
+                onClick={() => { setIsCartOpen(true); setIsMobileMenuOpen(false); }}
+                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-xs font-medium text-[#a1a1aa] hover:text-white hover:bg-[#1c1c28] transition-all"
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg>
+                Cart ({cartItemsCount})
+              </button>
+            </nav>
+
+            {/* Drawer Footer */}
+            <div className="p-4 border-t border-[#272734] text-center">
+              <p className="text-[10px] text-[#a1a1aa] font-mono">Powered by Mercato</p>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Main Content Area */}
       <main className="flex-1 max-w-6xl mx-auto px-4 sm:px-6 py-6 w-full space-y-12">
@@ -555,7 +683,7 @@ export default function StorefrontPage({ params }) {
         </section>
 
         {/* EXPLORE OUR PRODUCTS GRID */}
-        <section id="products-grid" className="space-y-6 pt-4 border-t border-[#272734]">
+        <section id="products-grid" ref={productsGridRef} className="space-y-6 pt-4 border-t border-[#272734] scroll-mt-24">
           <div className="space-y-1">
             <div className="flex items-center gap-2 text-xs font-bold uppercase text-[#db4444]">
               <span className="w-3 h-7 bg-[#db4444] rounded-sm inline-block"></span>

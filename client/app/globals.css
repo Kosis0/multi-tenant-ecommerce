@@ -71,6 +71,11 @@
   100% { transform: scale(1); }
 }
 
+@keyframes slideInLeft {
+  from { transform: translateX(-100%); }
+  to { transform: translateX(0); }
+}
+
 html {
   scroll-behavior: smooth;
   color-scheme: dark;
