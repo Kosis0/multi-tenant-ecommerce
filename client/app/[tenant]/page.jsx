@@ -334,14 +334,6 @@ export default function StorefrontPage({ params }) {
                 </span>
               )}
             </button>
-
-            {/* Admin Portal Shortcut */}
-            <a 
-              href={`/${tenant}/admin`}
-              className="hidden sm:inline-flex text-xs font-semibold px-3 py-1.5 border border-[#272734] rounded-lg hover:border-[#db4444] text-[#a1a1aa] hover:text-white transition-colors"
-            >
-              Merchant Admin
-            </a>
           </div>
         </div>
 
