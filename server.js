@@ -213,7 +213,8 @@ app.get('/api/products', resolveTenant, async (req, res, next) => {
              COALESCE(rating, 4.5) as rating, 
              COALESCE(review_count, 12) as review_count,
              COALESCE(discount_percent, 20) as discount_percent,
-             COALESCE(flash_sale_units, stock) as flash_sale_units
+             COALESCE(flash_sale_units, stock) as flash_sale_units,
+             COALESCE(images, '[]') as images
       FROM products 
       WHERE tenant_id = $1
     `;
@@ -245,26 +246,28 @@ app.get('/api/products', resolveTenant, async (req, res, next) => {
   }
 });
 
-// POST /api/products — Create product with expanded fields
+// POST /api/products — Create product with expanded fields & image gallery
 app.post('/api/products', resolveTenant, authenticateToken, requireStoreOwnership, async (req, res, next) => {
   const { 
     title, price, stock, image_url, 
     category = 'General', description = '', 
     original_price = null, is_featured = false, is_new_arrival = false,
-    discount_percent = 20, flash_sale_units = null
+    discount_percent = 20, flash_sale_units = null, images = []
   } = req.body;
+
+  const imagesJson = typeof images === 'string' ? images : JSON.stringify(images);
 
   try {
     const { rows } = await pool.query(
       `INSERT INTO products (
         title, price, stock, image_url, tenant_id, 
         category, description, original_price, is_featured, is_new_arrival,
-        discount_percent, flash_sale_units
-       ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) RETURNING *`,
+        discount_percent, flash_sale_units, images
+       ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13) RETURNING *`,
       [
         title, price, stock, image_url, req.tenant.id, 
         category, description, original_price, is_featured, is_new_arrival,
-        discount_percent, flash_sale_units || stock
+        discount_percent, flash_sale_units || stock, imagesJson
       ]
     );
     sendSuccess(res, rows[0], 201);
@@ -273,14 +276,16 @@ app.post('/api/products', resolveTenant, authenticateToken, requireStoreOwnershi
   }
 });
 
-// PUT /api/products/:id — Update product with expanded fields
+// PUT /api/products/:id — Update product with expanded fields & image gallery
 app.put('/api/products/:id', resolveTenant, authenticateToken, requireStoreOwnership, async (req, res, next) => {
   const { id } = req.params;
   const { 
     title, price, stock, image_url, 
     category, description, original_price, is_featured, is_new_arrival,
-    discount_percent, flash_sale_units
+    discount_percent, flash_sale_units, images
   } = req.body;
+
+  const imagesJson = images !== undefined ? (typeof images === 'string' ? images : JSON.stringify(images)) : null;
 
   try {
     const { rows } = await pool.query(
@@ -295,13 +300,14 @@ app.put('/api/products/:id', resolveTenant, authenticateToken, requireStoreOwner
            is_featured = COALESCE($8, is_featured),
            is_new_arrival = COALESCE($9, is_new_arrival),
            discount_percent = COALESCE($10, discount_percent),
-           flash_sale_units = COALESCE($11, flash_sale_units)
-       WHERE id = $12 AND tenant_id = $13 
+           flash_sale_units = COALESCE($11, flash_sale_units),
+           images = COALESCE($12, images)
+       WHERE id = $13 AND tenant_id = $14 
        RETURNING *`,
       [
         title, price, stock, image_url, category, description, 
         original_price, is_featured, is_new_arrival, discount_percent, 
-        flash_sale_units, id, req.tenant.id
+        flash_sale_units, imagesJson, id, req.tenant.id
       ]
     );
     if (rows.length === 0) return sendError(res, 'Product not found', 404);

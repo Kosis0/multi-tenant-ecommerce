@@ -43,6 +43,10 @@ export default function StorefrontPage({ params }) {
   const [reviewLoading, setReviewLoading] = useState(false);
   const [submittingReview, setSubmittingReview] = useState(false);
 
+  // Product Detail Modal State (Gallery & Rich Description)
+  const [selectedDetailProduct, setSelectedDetailProduct] = useState(null);
+  const [activeDetailImage, setActiveDetailImage] = useState(null);
+
   // Countdown Timer State (Flash Sales)
   const [timeLeft, setTimeLeft] = useState({
     days: 3,
@@ -156,6 +160,18 @@ export default function StorefrontPage({ params }) {
     } finally {
       setSubmittingReview(false);
     }
+  };
+
+  const openProductDetail = (product) => {
+    setSelectedDetailProduct(product);
+    let parsedImages = [];
+    try {
+      parsedImages = typeof product.images === 'string' ? JSON.parse(product.images) : (product.images || []);
+    } catch (e) {
+      parsedImages = [];
+    }
+    const gallery = [product.image_url, ...(Array.isArray(parsedImages) ? parsedImages : [])].filter(Boolean);
+    setActiveDetailImage(gallery[0] || null);
   };
 
   // Add To Cart
@@ -634,8 +650,11 @@ export default function StorefrontPage({ params }) {
                       </svg>
                     </button>
 
-                    {/* Product Image Area */}
-                    <div className="aspect-square relative overflow-hidden bg-[#181824] p-4 flex items-center justify-center">
+                    {/* Product Image Area — Clickable for Product Detail Modal */}
+                    <div 
+                      onClick={() => openProductDetail(product)}
+                      className="aspect-square relative overflow-hidden bg-[#181824] p-4 flex items-center justify-center cursor-pointer"
+                    >
                       {product.image_url ? (
                         <img 
                           src={product.image_url} 
@@ -663,7 +682,12 @@ export default function StorefrontPage({ params }) {
 
                     {/* Product Info */}
                     <div className="p-4 flex flex-col flex-1">
-                      <h3 className="text-xs sm:text-sm font-semibold text-white truncate mb-1">{product.title}</h3>
+                      <h3 
+                        onClick={() => openProductDetail(product)}
+                        className="text-xs sm:text-sm font-semibold text-white truncate mb-1 cursor-pointer hover:text-[#db4444] transition-colors"
+                      >
+                        {product.title}
+                      </h3>
                       
                       {/* Price in Naira (₦) */}
                       <div className="flex items-center gap-2 mb-2 font-mono text-xs sm:text-sm">
@@ -769,8 +793,11 @@ export default function StorefrontPage({ params }) {
                       </svg>
                     </button>
 
-                    {/* Image Area */}
-                    <div className="aspect-square relative overflow-hidden bg-[#181824] p-4 flex items-center justify-center">
+                    {/* Image Area — Clickable */}
+                    <div 
+                      onClick={() => openProductDetail(product)}
+                      className="aspect-square relative overflow-hidden bg-[#181824] p-4 flex items-center justify-center cursor-pointer"
+                    >
                       {product.image_url ? (
                         <img 
                           src={product.image_url} 
@@ -798,7 +825,12 @@ export default function StorefrontPage({ params }) {
 
                     {/* Details */}
                     <div className="p-4 flex flex-col flex-1">
-                      <h3 className="text-xs sm:text-sm font-semibold text-white truncate mb-1">{product.title}</h3>
+                      <h3 
+                        onClick={() => openProductDetail(product)}
+                        className="text-xs sm:text-sm font-semibold text-white truncate mb-1 cursor-pointer hover:text-[#db4444] transition-colors"
+                      >
+                        {product.title}
+                      </h3>
                       <div className="flex items-center justify-between mb-2">
                         <span className="text-xs sm:text-sm font-bold font-mono text-[#db4444]">{formatNaira(product.price)}</span>
                         <span className="text-[10px] text-[#a1a1aa] font-mono">{product.stock > 0 ? `${product.stock} left` : 'Sold out'}</span>
@@ -1013,6 +1045,140 @@ export default function StorefrontPage({ params }) {
           </div>
         </div>
       )}
+
+      {/* PRODUCT DETAIL MODAL (Gallery & Detailed Description) */}
+      {selectedDetailProduct && (() => {
+        let parsedImages = [];
+        try {
+          parsedImages = typeof selectedDetailProduct.images === 'string' 
+            ? JSON.parse(selectedDetailProduct.images) 
+            : (selectedDetailProduct.images || []);
+        } catch (e) {
+          parsedImages = [];
+        }
+        const gallery = [selectedDetailProduct.image_url, ...(Array.isArray(parsedImages) ? parsedImages : [])].filter(Boolean);
+        const mainImg = activeDetailImage || gallery[0];
+        const isWishlisted = wishlist.includes(selectedDetailProduct.id);
+        const originalPrice = selectedDetailProduct.original_price || (Number(selectedDetailProduct.price) * 1.25);
+        const calculatedPercent = Math.round(((originalPrice - selectedDetailProduct.price) / originalPrice) * 100);
+        const discountPercent = selectedDetailProduct.discount_percent || (calculatedPercent > 0 ? calculatedPercent : 20);
+
+        return (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <div className="fixed inset-0 bg-black/80 backdrop-blur-sm" onClick={() => setSelectedDetailProduct(null)}></div>
+            
+            <div className="relative bg-[#141418] border border-[#272734] rounded-2xl p-6 sm:p-8 max-w-3xl w-full z-10 shadow-2xl animate-in zoom-in-95 duration-200 max-h-[90vh] overflow-y-auto">
+              <button 
+                onClick={() => setSelectedDetailProduct(null)} 
+                className="absolute top-4 right-4 p-2 text-[#a1a1aa] hover:text-white transition-colors"
+              >
+                ✕
+              </button>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 sm:gap-8">
+                {/* Image Gallery Column */}
+                <div className="space-y-3">
+                  <div className="aspect-square bg-[#181824] border border-[#272734] rounded-xl overflow-hidden flex items-center justify-center p-4">
+                    {mainImg ? (
+                      <img src={mainImg} alt={selectedDetailProduct.title} className="w-full h-full object-cover rounded-lg" />
+                    ) : (
+                      <div className="text-[#a1a1aa] text-xs">No Image Preview</div>
+                    )}
+                  </div>
+
+                  {/* Thumbnail Row */}
+                  {gallery.length > 1 && (
+                    <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pb-1">
+                      {gallery.map((imgUrl, i) => (
+                        <button
+                          key={i}
+                          onClick={() => setActiveDetailImage(imgUrl)}
+                          className={`w-14 h-14 rounded-lg overflow-hidden border-2 transition-all flex-shrink-0 bg-[#09090b] ${
+                            mainImg === imgUrl ? 'border-[#db4444] scale-95' : 'border-[#272734] opacity-70 hover:opacity-100'
+                          }`}
+                        >
+                          <img src={imgUrl} alt="Thumbnail" className="w-full h-full object-cover" />
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* Info & Action Column */}
+                <div className="flex flex-col justify-between space-y-4">
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <span className="px-2.5 py-1 bg-[#181824] border border-[#272734] text-[10px] font-mono font-bold uppercase tracking-wider text-[#a1a1aa] rounded-md">
+                        {selectedDetailProduct.category || 'General'}
+                      </span>
+                      <span className="text-xs font-mono text-[#22c55e]">
+                        {selectedDetailProduct.stock > 0 ? `In Stock (${selectedDetailProduct.stock} units)` : 'Out of Stock'}
+                      </span>
+                    </div>
+
+                    <h2 className="text-xl sm:text-2xl font-extrabold text-white tracking-tight leading-snug">
+                      {selectedDetailProduct.title}
+                    </h2>
+
+                    {/* Price & Strikethrough */}
+                    <div className="flex items-center gap-3 font-mono">
+                      <span className="text-2xl font-black text-[#db4444]">{formatNaira(selectedDetailProduct.price)}</span>
+                      <span className="text-sm text-[#a1a1aa] line-through">{formatNaira(originalPrice)}</span>
+                      <span className="bg-[#db4444]/20 text-[#db4444] border border-[#db4444]/30 text-xs font-bold px-2 py-0.5 rounded">
+                        -{discountPercent}% OFF
+                      </span>
+                    </div>
+
+                    {/* Ratings */}
+                    <div className="flex items-center gap-2 text-xs text-[#a1a1aa]">
+                      <div className="flex text-amber-400">★★★★☆</div>
+                      <span>({selectedDetailProduct.review_count || 12} customer reviews)</span>
+                      <button 
+                        onClick={() => { setSelectedDetailProduct(null); openReviewModal(selectedDetailProduct); }} 
+                        className="text-[#db4444] hover:underline font-semibold ml-2"
+                      >
+                        Read Reviews
+                      </button>
+                    </div>
+
+                    <div className="border-t border-[#272734] my-2"></div>
+
+                    {/* Detailed Item Description */}
+                    <div>
+                      <h4 className="text-xs font-bold uppercase tracking-wider text-[#a1a1aa] mb-2">Item Overview & Specs</h4>
+                      <p className="text-xs text-[#fafafa]/80 leading-relaxed whitespace-pre-line bg-[#09090b] p-3 border border-[#272734] rounded-lg">
+                        {selectedDetailProduct.description || 'Premium build quality and high performance. Built with durable materials for long-lasting performance and reliability.'}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Actions */}
+                  <div className="pt-4 border-t border-[#272734] flex items-center gap-3">
+                    <button
+                      onClick={() => { addToCart(selectedDetailProduct); }}
+                      disabled={selectedDetailProduct.stock === 0}
+                      className="press flex-1 py-3 bg-[#db4444] hover:bg-[#e53838] text-white font-bold text-xs uppercase tracking-wider rounded-lg shadow-lg shadow-[#db4444]/20 transition-all disabled:opacity-50"
+                    >
+                      {selectedDetailProduct.stock > 0 ? 'Add To Cart' : 'Out of Stock'}
+                    </button>
+
+                    <button
+                      onClick={() => toggleWishlist(selectedDetailProduct.id)}
+                      className={`p-3 rounded-lg border transition-all ${
+                        isWishlisted ? 'bg-[#db4444] border-[#db4444] text-white' : 'bg-[#181824] border-[#272734] text-[#a1a1aa] hover:text-white'
+                      }`}
+                    >
+                      <svg width="20" height="20" viewBox="0 0 24 24" fill={isWishlisted ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="2">
+                        <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
+                      </svg>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
 
       {/* CUSTOMER PRODUCT REVIEWS MODAL */}
       {reviewProduct && (

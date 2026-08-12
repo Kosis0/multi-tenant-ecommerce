@@ -36,7 +36,8 @@ export default function AdminDashboard() {
     image_url: '',
     is_featured: false,
     discount_percent: '20',
-    flash_sale_units: '10'
+    flash_sale_units: '10',
+    images: []
   });
   const [uploadingImage, setUploadingImage] = useState(false);
   const [productSubmitLoading, setProductSubmitLoading] = useState(false);
@@ -213,6 +214,13 @@ export default function AdminDashboard() {
 
   const openProductModal = (product = null) => {
     if (product) {
+      let parsedImages = [];
+      try {
+        parsedImages = typeof product.images === 'string' ? JSON.parse(product.images) : (product.images || []);
+      } catch (e) {
+        parsedImages = [];
+      }
+
       setProductForm({
         id: product.id,
         title: product.title || '',
@@ -224,7 +232,8 @@ export default function AdminDashboard() {
         image_url: product.image_url || '',
         is_featured: !!product.is_featured,
         discount_percent: product.discount_percent || '20',
-        flash_sale_units: product.flash_sale_units || product.stock || '10'
+        flash_sale_units: product.flash_sale_units || product.stock || '10',
+        images: Array.isArray(parsedImages) ? parsedImages : []
       });
     } else {
       setProductForm({ 
@@ -238,7 +247,8 @@ export default function AdminDashboard() {
         image_url: '',
         is_featured: false,
         discount_percent: '20',
-        flash_sale_units: '10'
+        flash_sale_units: '10',
+        images: []
       });
     }
     setIsProductModalOpen(true);
@@ -269,7 +279,8 @@ export default function AdminDashboard() {
         image_url: productForm.image_url,
         is_featured: productForm.is_featured,
         discount_percent: parseInt(productForm.discount_percent, 10) || 20,
-        flash_sale_units: parseInt(productForm.flash_sale_units, 10) || parseInt(productForm.stock, 10)
+        flash_sale_units: parseInt(productForm.flash_sale_units, 10) || parseInt(productForm.stock, 10),
+        images: productForm.images
       };
 
       const res = await authFetch(url, {
@@ -769,7 +780,64 @@ export default function AdminDashboard() {
                 </div>
               </div>
 
-              {/* IMAGE UPLOAD & IMAGE URL SECTION */}
+              {/* DETAILED DESCRIPTION & GALLERY IMAGES */}
+              <div>
+                <label className="text-xs font-semibold uppercase tracking-wider text-[#a1a1aa] mb-1 block">
+                  Detailed Item Description
+                </label>
+                <textarea
+                  rows="3"
+                  value={productForm.description}
+                  onChange={e => setProductForm({ ...productForm, description: e.target.value })}
+                  className="w-full px-3.5 py-2 bg-[#09090b] border border-[#272734] rounded-lg text-xs text-white outline-none focus:border-[#db4444]"
+                  placeholder="Enter specs, features, warranty, build materials, etc."
+                ></textarea>
+              </div>
+
+              {/* ADDITIONAL GALLERY IMAGES */}
+              <div>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="text-xs font-semibold uppercase tracking-wider text-[#a1a1aa]">
+                    Additional Product Images Gallery ({productForm.images.length})
+                  </label>
+                  <label className="cursor-pointer text-[11px] font-bold text-[#db4444] hover:underline">
+                    + Upload Extra Image
+                    <input 
+                      type="file" 
+                      accept="image/*" 
+                      onChange={async (e) => {
+                        const file = e.target.files?.[0];
+                        if (!file) return;
+                        const formData = new FormData();
+                        formData.append('image', file);
+                        const res = await authFetch(`/api/upload?tenant=${tenantSlug}`, { method: 'POST', body: formData });
+                        if (res.success && res.data?.url) {
+                          setProductForm(prev => ({ ...prev, images: [...prev.images, res.data.url] }));
+                          addToast('Gallery image added!');
+                        }
+                      }} 
+                      className="hidden" 
+                    />
+                  </label>
+                </div>
+
+                {productForm.images.length > 0 && (
+                  <div className="grid grid-cols-4 gap-2 mt-2">
+                    {productForm.images.map((imgUrl, idx) => (
+                      <div key={idx} className="relative group rounded-lg overflow-hidden border border-[#272734] aspect-square bg-[#09090b]">
+                        <img src={imgUrl} alt="Gallery" className="w-full h-full object-cover" />
+                        <button
+                          type="button"
+                          onClick={() => setProductForm(prev => ({ ...prev, images: prev.images.filter((_, i) => i !== idx) }))}
+                          className="absolute top-1 right-1 bg-red-600/80 text-white rounded-full w-4 h-4 text-[10px] flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                        >
+                          ✕
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
               <div>
                 <label className="text-xs font-semibold uppercase tracking-wider text-[#a1a1aa] mb-1 block">
                   Product Image (File Upload or Image URL)
