@@ -33,7 +33,8 @@ export default function AdminDashboard() {
     stock: '',
     category: 'General',
     description: '',
-    image_url: ''
+    image_url: '',
+    is_featured: false
   });
   const [uploadingImage, setUploadingImage] = useState(false);
   const [productSubmitLoading, setProductSubmitLoading] = useState(false);
@@ -217,7 +218,8 @@ export default function AdminDashboard() {
         stock: product.stock || '',
         category: product.category || 'General',
         description: product.description || '',
-        image_url: product.image_url || ''
+        image_url: product.image_url || '',
+        is_featured: !!product.is_featured
       });
     } else {
       setProductForm({ 
@@ -228,7 +230,8 @@ export default function AdminDashboard() {
         stock: '', 
         category: 'General', 
         description: '', 
-        image_url: '' 
+        image_url: '',
+        is_featured: false 
       });
     }
     setIsProductModalOpen(true);
@@ -251,12 +254,13 @@ export default function AdminDashboard() {
 
       const payload = {
         title: productForm.title,
-        price: Number(productForm.price),
-        original_price: productForm.original_price ? Number(productForm.original_price) : null,
-        stock: Number(productForm.stock),
+        price: parseFloat(productForm.price),
+        original_price: productForm.original_price ? parseFloat(productForm.original_price) : null,
+        stock: parseInt(productForm.stock, 10),
         category: productForm.category,
         description: productForm.description,
-        image_url: productForm.image_url
+        image_url: productForm.image_url,
+        is_featured: productForm.is_featured
       };
 
       const res = await authFetch(url, {
@@ -724,6 +728,20 @@ export default function AdminDashboard() {
                     <button type="button" onClick={() => setProductForm({ ...productForm, image_url: '' })} className="text-xs text-red-400">Remove</button>
                   </div>
                 )}
+              </div>
+
+              {/* FLASH SALE / FEATURED TOGGLE */}
+              <div className="p-3 bg-[#181824] border border-[#272734] rounded-lg flex items-center justify-between">
+                <div>
+                  <span className="text-xs font-bold text-white block">Feature in Flash Sales</span>
+                  <span className="text-[11px] text-[#a1a1aa]">Show this item in the top Flash Sales section on your storefront</span>
+                </div>
+                <input
+                  type="checkbox"
+                  checked={productForm.is_featured}
+                  onChange={e => setProductForm({ ...productForm, is_featured: e.target.checked })}
+                  className="w-4 h-4 accent-[#db4444] rounded cursor-pointer"
+                />
               </div>
 
               <div className="flex items-center justify-end gap-3 pt-4 border-t border-[#272734]">

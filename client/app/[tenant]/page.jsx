@@ -564,7 +564,10 @@ export default function StorefrontPage({ params }) {
             </div>
           ) : (
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6">
-              {filteredProducts.slice(0, 4).map(product => {
+              {(products.filter(p => p.is_featured).length > 0 
+                ? products.filter(p => p.is_featured) 
+                : filteredProducts.slice(0, 4)
+              ).map(product => {
                 const isWishlisted = wishlist.includes(product.id);
                 const originalPrice = product.original_price || (Number(product.price) * 1.25);
                 const discountPercent = Math.round(((originalPrice - product.price) / originalPrice) * 100);
