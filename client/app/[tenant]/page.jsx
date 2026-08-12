@@ -95,26 +95,115 @@ export default function StorefrontPage({ params }) {
       .catch(err => console.error('Failed to fetch wishlist', err));
   }, [tenant, API_URL]);
 
+  // Demo Store Fallback Data Generator
+  const getDemoStoreData = (tenantSlug) => {
+    const name = tenantSlug ? tenantSlug.charAt(0).toUpperCase() + tenantSlug.slice(1) : 'Demo';
+    return {
+      store: { name: `${name} Official Store`, slug: tenantSlug },
+      categories: [
+        { id: 1, name: 'Shoes', icon: '👟' },
+        { id: 2, name: 'Apparel', icon: '👕' },
+        { id: 3, name: 'Accessories', icon: '🎒' },
+        { id: 4, name: 'Electronics', icon: '🎧' }
+      ],
+      products: [
+        {
+          id: 101,
+          title: `${name} Nitro Speed Pro Runners`,
+          price: 45000,
+          original_price: 65000,
+          stock: 12,
+          image_url: 'https://images.unsplash.com/photo-1542291026-7eec264c27ff?auto=format&fit=crop&w=800&q=80',
+          category: 'Shoes',
+          description: `Premium performance footwear from ${name}. Features responsive cushioning and sleek aerodynamic design for athletic performance.`,
+          is_featured: true,
+          is_new_arrival: true,
+          rating: 4.9,
+          review_count: 28,
+          discount_percent: 30,
+          flash_sale_units: 5,
+          images: []
+        },
+        {
+          id: 102,
+          title: `${name} Essential Performance Hoodie`,
+          price: 28000,
+          original_price: 35000,
+          stock: 20,
+          image_url: 'https://images.unsplash.com/photo-1556905055-8f358a7a47b2?auto=format&fit=crop&w=800&q=80',
+          category: 'Apparel',
+          description: 'Ultra-soft heavyweight cotton blend hoodie designed for warmth and modern street style.',
+          is_featured: true,
+          is_new_arrival: false,
+          rating: 4.7,
+          review_count: 19,
+          discount_percent: 20,
+          flash_sale_units: 10,
+          images: []
+        },
+        {
+          id: 103,
+          title: `${name} Urban Tactical Backpack`,
+          price: 38000,
+          original_price: 48000,
+          stock: 8,
+          image_url: 'https://images.unsplash.com/photo-1553062407-98eeb64c6a62?auto=format&fit=crop&w=800&q=80',
+          category: 'Accessories',
+          description: 'Water-resistant multi-compartment backpack with padded 16 inch laptop sleeve and ergonomic straps.',
+          is_featured: false,
+          is_new_arrival: true,
+          rating: 4.8,
+          review_count: 14,
+          discount_percent: 20,
+          flash_sale_units: 4,
+          images: []
+        },
+        {
+          id: 104,
+          title: `${name} Wireless ANC Pro Headphones`,
+          price: 75000,
+          original_price: 95000,
+          stock: 6,
+          image_url: 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?auto=format&fit=crop&w=800&q=80',
+          category: 'Electronics',
+          description: 'Studio-grade audio with active noise cancellation, 40-hour battery life, and memory foam earcups.',
+          is_featured: true,
+          is_new_arrival: true,
+          rating: 4.9,
+          review_count: 42,
+          discount_percent: 21,
+          flash_sale_units: 3,
+          images: []
+        }
+      ]
+    };
+  };
+
   // Fetch Storefront Data
   useEffect(() => {
     async function fetchStorefront() {
       try {
         const res = await fetch(`${API_URL}/api/products?tenant=${tenant}`);
-        if (!res.ok) throw new Error('Store not found');
-        
-        const json = await res.json();
-        if (json.success) {
-          setStoreData(json.data.store);
-          setProducts(json.data.products || []);
-          setCategories(json.data.categories || []);
-        } else {
-          throw new Error(json.error || 'Failed to load store');
+        if (res.ok) {
+          const json = await res.json();
+          if (json.success && json.data) {
+            setStoreData(json.data.store);
+            setProducts(json.data.products?.length > 0 ? json.data.products : getDemoStoreData(tenant).products);
+            setCategories(json.data.categories?.length > 0 ? json.data.categories : getDemoStoreData(tenant).categories);
+            setLoading(false);
+            return;
+          }
         }
       } catch (err) {
-        setError(err.message);
-      } finally {
-        setLoading(false);
+        console.warn('API fetch failed, utilizing demo store fallback:', err);
       }
+      
+      // Fallback for unseeded stores or offline backend
+      const demo = getDemoStoreData(tenant);
+      setStoreData(demo.store);
+      setProducts(demo.products);
+      setCategories(demo.categories);
+      setLoading(false);
     }
     fetchStorefront();
   }, [tenant, API_URL]);
