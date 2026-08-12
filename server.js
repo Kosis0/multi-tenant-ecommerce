@@ -380,7 +380,8 @@ app.put('/api/categories/:id', resolveTenant, authenticateToken, requireStoreOwn
 app.delete('/api/categories/:id', resolveTenant, authenticateToken, requireStoreOwnership, async (req, res, next) => {
   const { id } = req.params;
   try {
-    await pool.query('DELETE FROM categories WHERE id = $1 AND tenant_id = $2', [id, req.tenant.id]);
+    const result = await pool.query('DELETE FROM categories WHERE id = $1 AND tenant_id = $2', [id, req.tenant.id]);
+    if (result.rowCount === 0) return res.status(404).json({ success: false, message: 'Category not found' });
     sendSuccess(res, { deleted: true });
   } catch (err) {
     next(err);
@@ -454,6 +455,9 @@ app.post('/api/products/:id/reviews', resolveTenant, async (req, res, next) => {
   }
 
   try {
+    const productCheck = await pool.query('SELECT id FROM products WHERE id = $1 AND tenant_id = $2', [req.params.id, req.tenant.id]);
+    if (productCheck.rows.length === 0) return res.status(404).json({ success: false, message: 'Product not found' });
+
     // Insert review
     const { rows: newReview } = await pool.query(
       'INSERT INTO reviews (tenant_id, product_id, author_name, rating, comment) VALUES ($1, $2, $3, $4, $5) RETURNING *',
@@ -503,8 +507,8 @@ app.post('/api/orders', resolveTenant, async (req, res, next) => {
       total_amount += product.price * item.quantity;
       
       await client.query(
-        'UPDATE products SET stock = stock - $1 WHERE id = $2',
-        [item.quantity, item.product_id]
+        'UPDATE products SET stock = stock - $1 WHERE id = $2 AND tenant_id = $3',
+        [item.quantity, item.product_id, req.tenant.id]
       );
     }
 
@@ -515,7 +519,7 @@ app.post('/api/orders', resolveTenant, async (req, res, next) => {
     const order = orderRes.rows[0];
 
     for (const item of items) {
-      const prodRes = await client.query('SELECT price FROM products WHERE id = $1', [item.product_id]);
+      const prodRes = await client.query('SELECT price FROM products WHERE id = $1 AND tenant_id = $2', [item.product_id, req.tenant.id]);
       const unit_price = prodRes.rows[0].price;
       
       await client.query(
@@ -637,8 +641,8 @@ app.post('/api/orders/:id/pay', resolveTenant, async (req, res, next) => {
     if (orders.length === 0) return sendError(res, 'Order not found', 404);
     
     const { rows } = await pool.query(
-      "UPDATE orders SET status = 'paid' WHERE id = $1 RETURNING *",
-      [id]
+      "UPDATE orders SET status = 'paid' WHERE id = $1 AND tenant_id = $2 RETURNING *",
+      [id, req.tenant.id]
     );
     sendSuccess(res, rows[0]);
   } catch (err) {

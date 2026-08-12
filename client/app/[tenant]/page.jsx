@@ -16,6 +16,7 @@ export default function StorefrontPage({ params }) {
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [searchQuery, setSearchQuery] = useState('');
   const [wishlist, setWishlist] = useState([]);
+  const [sessionId, setSessionId] = useState('');
   const [cart, setCart] = useState([]);
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [isWishlistOpen, setIsWishlistOpen] = useState(false);
@@ -75,6 +76,25 @@ export default function StorefrontPage({ params }) {
     return () => clearInterval(timer);
   }, []);
 
+  // Wishlist Init
+  useEffect(() => {
+    let sid = localStorage.getItem('sessionId');
+    if (!sid) {
+      sid = crypto.randomUUID();
+      localStorage.setItem('sessionId', sid);
+    }
+    setSessionId(sid);
+    
+    fetch(`${API_URL}/api/wishlist?tenant=${tenant}&sessionId=${sid}`)
+      .then(res => res.json())
+      .then(data => {
+        if (data.success && data.data) {
+          setWishlist(data.data.map(w => w.product_id));
+        }
+      })
+      .catch(err => console.error('Failed to fetch wishlist', err));
+  }, [tenant, API_URL]);
+
   // Fetch Storefront Data
   useEffect(() => {
     async function fetchStorefront() {
@@ -101,7 +121,7 @@ export default function StorefrontPage({ params }) {
 
   // Toast Helper
   const addToast = (message, type = 'success') => {
-    const id = Date.now();
+    const id = Date.now() + '-' + Math.random().toString(36).substr(2, 9);
     setToasts(prev => [...prev, { id, message, type }]);
     setTimeout(() => {
       setToasts(prev => prev.filter(t => t.id !== id));
@@ -115,17 +135,32 @@ export default function StorefrontPage({ params }) {
   };
 
   // Wishlist Toggle
-  const toggleWishlist = (productId) => {
-    setWishlist(prev => {
-      const exists = prev.includes(productId);
-      if (exists) {
-        addToast('Removed from Wishlist', 'info');
-        return prev.filter(id => id !== productId);
-      } else {
-        addToast('Added to Wishlist!', 'success');
-        return [...prev, productId];
+  const toggleWishlist = async (productId) => {
+    const exists = wishlist.includes(productId);
+    
+    if (exists) {
+      setWishlist(prev => prev.filter(id => id !== productId));
+      addToast('Removed from Wishlist', 'info');
+      try {
+        await fetch(`${API_URL}/api/wishlist/${productId}?tenant=${tenant}&sessionId=${sessionId}`, {
+          method: 'DELETE'
+        });
+      } catch (err) {
+        console.error('Failed to remove from wishlist', err);
       }
-    });
+    } else {
+      setWishlist(prev => [...prev, productId]);
+      addToast('Added to Wishlist!', 'success');
+      try {
+        await fetch(`${API_URL}/api/wishlist?tenant=${tenant}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ sessionId, productId })
+        });
+      } catch (err) {
+        console.error('Failed to add to wishlist', err);
+      }
+    }
   };
 
   // Review Handlers
@@ -836,7 +871,14 @@ export default function StorefrontPage({ params }) {
                 <div className="text-center py-12 text-[#a1a1aa]">Cart is empty</div>
               ) : (
                 cart.map(item => (
-                  <div key={item.product_id} className="flex items-center justify-between gap-3 p-3 bg-[#09090b] border border-[#272734] rounded-xl">
+                  <div key={item.product_id} className="relative flex items-center justify-between gap-3 p-3 bg-[#09090b] border border-[#272734] rounded-xl">
+                    <button 
+                      onClick={() => removeFromCart(item.product_id)} 
+                      className="absolute top-2 right-2 text-[#a1a1aa] hover:text-[#db4444] transition-colors"
+                      title="Remove item"
+                    >
+                      ✕
+                    </button>
                     <div className="w-12 h-12 rounded-lg bg-[#141418] border border-[#272734] overflow-hidden">
                       {item.image_url && <img src={item.image_url} alt={item.title} className="w-full h-full object-cover" />}
                     </div>

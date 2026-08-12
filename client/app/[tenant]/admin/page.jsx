@@ -72,7 +72,7 @@ export default function AdminDashboard() {
   }, [token, tenantSlug]);
 
   const addToast = (message, type = 'success') => {
-    const id = Date.now();
+    const id = Date.now() + '-' + Math.random().toString(36).substr(2, 9);
     setToasts((prev) => [...prev, { id, message, type }]);
     setTimeout(() => {
       setToasts((prev) => prev.filter((t) => t.id !== id));
@@ -135,11 +135,13 @@ export default function AdminDashboard() {
       setOrders(ordersData);
       setCategories(categoriesData);
 
-      const revenue = ordersData.reduce((acc, order) => acc + (Number(order.total_amount) || 0), 0);
+      const statsRes = await authFetch(`/api/admin/stats?tenant=${tenantSlug}`);
+      const statsData = typeof statsRes.json === 'function' ? await statsRes.json() : statsRes;
+
       setStats({
-        revenue,
-        totalOrders: ordersData.length,
-        activeProducts: productsData.length,
+        revenue: statsData.data.totalRevenue,
+        totalOrders: statsData.data.totalOrders,
+        activeProducts: statsData.data.totalProducts,
       });
 
     } catch (error) {
@@ -263,6 +265,9 @@ export default function AdminDashboard() {
 
   const handleProductSubmit = async (e) => {
     e.preventDefault();
+    if (!productForm.title.trim()) { addToast('Product title is required', 'error'); return; }
+    if (isNaN(parseFloat(productForm.price)) || parseFloat(productForm.price) <= 0) { addToast('Valid price is required', 'error'); return; }
+    if (isNaN(parseInt(productForm.stock)) || parseInt(productForm.stock) < 0) { addToast('Valid stock quantity is required', 'error'); return; }
     setProductSubmitLoading(true);
     
     try {
@@ -671,7 +676,7 @@ export default function AdminDashboard() {
                     <div key={order.id} className="p-4 flex flex-col gap-3 hover:bg-[#1c1c24] transition-colors">
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2 font-mono text-xs">
-                          <span className="text-white font-bold">#{order.id.substring(0, 8)}</span>
+                          <span className="text-white font-bold">#{String(order.id).substring(0, 8)}</span>
                           <span className="text-[#a1a1aa]">• {new Date(order.created_at || Date.now()).toLocaleDateString()}</span>
                         </div>
                         <div className="font-mono text-sm font-bold text-[#db4444]">{formatNaira(order.total_amount)}</div>
