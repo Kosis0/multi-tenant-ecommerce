@@ -52,7 +52,7 @@ export default function AdminDashboard() {
   // Toasts
   const [toasts, setToasts] = useState([]);
 
-  const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
+  const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://my-ecommerce-backend-uwkx.onrender.com';
 
   useEffect(() => {
     if (tenantSlug) {
