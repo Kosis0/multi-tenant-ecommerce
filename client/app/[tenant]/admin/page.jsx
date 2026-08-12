@@ -13,6 +13,7 @@ export default function AdminDashboard() {
   // Dashboard state
   const [products, setProducts] = useState([]);
   const [orders, setOrders] = useState([]);
+  const [categories, setCategories] = useState([]);
   const [stats, setStats] = useState({ revenue: 0, totalOrders: 0, activeProducts: 0 });
   const [dataLoading, setDataLoading] = useState(true);
 
@@ -24,11 +25,28 @@ export default function AdminDashboard() {
 
   // Product Modal state
   const [isProductModalOpen, setIsProductModalOpen] = useState(false);
-  const [productForm, setProductForm] = useState({ id: null, title: '', price: '', stock: '', image_url: '' });
+  const [productForm, setProductForm] = useState({
+    id: null,
+    title: '',
+    price: '',
+    original_price: '',
+    stock: '',
+    category: 'General',
+    description: '',
+    image_url: ''
+  });
+  const [uploadingImage, setUploadingImage] = useState(false);
   const [productSubmitLoading, setProductSubmitLoading] = useState(false);
+
+  // Category Modal state
+  const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
+  const [newCatName, setNewCatName] = useState('');
+  const [newCatIcon, setNewCatIcon] = useState('📦');
 
   // Toasts
   const [toasts, setToasts] = useState([]);
+
+  const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
 
   useEffect(() => {
     if (tenantSlug) {
@@ -55,6 +73,11 @@ export default function AdminDashboard() {
     }, 3000);
   };
 
+  const formatNaira = (amount) => {
+    const num = Number(amount) || 0;
+    return '₦' + num.toLocaleString('en-NG', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  };
+
   const handleLogout = () => {
     if (tenantSlug) {
       localStorage.removeItem(`admin_token_${tenantSlug}`);
@@ -65,14 +88,16 @@ export default function AdminDashboard() {
     setStats({ revenue: 0, totalOrders: 0, activeProducts: 0 });
   };
 
-  const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
-
   const authFetch = async (url, options = {}) => {
     const headers = {
-      'Content-Type': 'application/json',
       ...(token && { Authorization: `Bearer ${token}` }),
       ...options.headers,
     };
+
+    // Don't set Content-Type if uploading FormData
+    if (!(options.body instanceof FormData) && !headers['Content-Type']) {
+      headers['Content-Type'] = 'application/json';
+    }
 
     const response = await fetch(`${API_URL}${url}`, {
       ...options,
@@ -98,9 +123,11 @@ export default function AdminDashboard() {
 
       const productsData = productsRes.data?.products || productsRes.products || [];
       const ordersData = Array.isArray(ordersRes.data) ? ordersRes.data : (ordersRes.data?.orders || ordersRes.orders || []);
+      const categoriesData = productsRes.data?.categories || [];
 
       setProducts(productsData);
       setOrders(ordersData);
+      setCategories(categoriesData);
 
       const revenue = ordersData.reduce((acc, order) => acc + (Number(order.total_amount) || 0), 0);
       setStats({
@@ -130,11 +157,10 @@ export default function AdminDashboard() {
       });
 
       const data = await res.json();
-      
       const jwtToken = data.data?.token || data.token;
       
       if (!res.ok || !jwtToken) {
-        throw new Error(data.message || 'Login failed');
+        throw new Error(data.error || data.message || 'Login failed');
       }
 
       localStorage.setItem(`admin_token_${tenantSlug}`, jwtToken);
@@ -148,24 +174,68 @@ export default function AdminDashboard() {
     }
   };
 
+  // Direct Image File Upload Handler
+  const handleImageFileUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      addToast('Please select a valid image file', 'error');
+      return;
+    }
+
+    setUploadingImage(true);
+    try {
+      const formData = new FormData();
+      formData.append('image', file);
+
+      const res = await authFetch(`/api/upload?tenant=${tenantSlug}`, {
+        method: 'POST',
+        body: formData
+      });
+
+      if (res.success && res.data?.url) {
+        setProductForm(prev => ({ ...prev, image_url: res.data.url }));
+        addToast('Image uploaded successfully!', 'success');
+      } else {
+        throw new Error(res.error || 'Failed to upload image');
+      }
+    } catch (err) {
+      addToast(err.message || 'Error uploading file', 'error');
+    } finally {
+      setUploadingImage(false);
+    }
+  };
+
   const openProductModal = (product = null) => {
     if (product) {
       setProductForm({
         id: product.id,
         title: product.title || '',
         price: product.price || '',
+        original_price: product.original_price || '',
         stock: product.stock || '',
+        category: product.category || 'General',
+        description: product.description || '',
         image_url: product.image_url || ''
       });
     } else {
-      setProductForm({ id: null, title: '', price: '', stock: '', image_url: '' });
+      setProductForm({ 
+        id: null, 
+        title: '', 
+        price: '', 
+        original_price: '', 
+        stock: '', 
+        category: 'General', 
+        description: '', 
+        image_url: '' 
+      });
     }
     setIsProductModalOpen(true);
   };
 
   const closeProductModal = () => {
     setIsProductModalOpen(false);
-    setProductForm({ id: null, title: '', price: '', stock: '', image_url: '' });
   };
 
   const handleProductSubmit = async (e) => {
@@ -182,7 +252,10 @@ export default function AdminDashboard() {
       const payload = {
         title: productForm.title,
         price: Number(productForm.price),
+        original_price: productForm.original_price ? Number(productForm.original_price) : null,
         stock: Number(productForm.stock),
+        category: productForm.category,
+        description: productForm.description,
         image_url: productForm.image_url
       };
 
@@ -196,7 +269,7 @@ export default function AdminDashboard() {
         closeProductModal();
         fetchDashboardData();
       } else {
-        throw new Error('Failed to save product');
+        throw new Error(res.error || 'Failed to save product');
       }
     } catch (error) {
       addToast(error.message || 'Error saving product', 'error');
@@ -219,6 +292,25 @@ export default function AdminDashboard() {
     }
   };
 
+  const handleAddCategory = async (e) => {
+    e.preventDefault();
+    if (!newCatName) return;
+    try {
+      const res = await authFetch(`/api/categories?tenant=${tenantSlug}`, {
+        method: 'POST',
+        body: JSON.stringify({ name: newCatName, icon: newCatIcon })
+      });
+      if (res.success) {
+        addToast('Category added!');
+        setNewCatName('');
+        setIsCategoryModalOpen(false);
+        fetchDashboardData();
+      }
+    } catch (err) {
+      addToast('Error adding category', 'error');
+    }
+  };
+
   const handleUpdateOrderStatus = async (id, newStatus) => {
     try {
       await authFetch(`/api/orders/${id}?tenant=${tenantSlug}`, {
@@ -232,34 +324,20 @@ export default function AdminDashboard() {
     }
   };
 
-  const formatCurrency = (amount) => {
-    return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(amount);
-  };
-
   const getStatusBadge = (status) => {
     const s = (status || '').toLowerCase();
-    let color = 'zinc-500';
-    let textColor = 'text-zinc-700 dark:text-zinc-300';
+    let dotColor = 'bg-zinc-500';
+    let textColor = 'text-zinc-400';
     
-    if (s === 'pending') { color = 'amber-500'; textColor = 'text-amber-700 dark:text-amber-400'; }
-    else if (s === 'paid') { color = 'emerald-500'; textColor = 'text-emerald-700 dark:text-emerald-400'; }
-    else if (s === 'shipped') { color = 'blue-500'; textColor = 'text-blue-700 dark:text-blue-400'; }
-    else if (s === 'delivered') { color = 'green-500'; textColor = 'text-green-700 dark:text-green-400'; }
-    else if (s === 'cancelled') { color = 'red-500'; textColor = 'text-red-700 dark:text-red-400'; }
-
-    // Use specific tailwind color strings for the bg dot to prevent purge issues or string concatenation matching issues
-    const dotColors = {
-      'amber-500': 'bg-amber-500',
-      'emerald-500': 'bg-emerald-500',
-      'blue-500': 'bg-blue-500',
-      'green-500': 'bg-green-500',
-      'red-500': 'bg-red-500',
-      'zinc-500': 'bg-zinc-500',
-    };
+    if (s === 'pending') { dotColor = 'bg-amber-500'; textColor = 'text-amber-400'; }
+    else if (s === 'paid') { dotColor = 'bg-emerald-500'; textColor = 'text-emerald-400'; }
+    else if (s === 'shipped') { dotColor = 'bg-blue-500'; textColor = 'text-blue-400'; }
+    else if (s === 'delivered') { dotColor = 'bg-green-500'; textColor = 'text-green-400'; }
+    else if (s === 'cancelled') { dotColor = 'bg-red-500'; textColor = 'text-red-400'; }
 
     return (
-      <span className={`inline-flex items-center gap-1.5 text-xs font-medium ${textColor}`}>
-        <span className={`w-1.5 h-1.5 rounded-full ${dotColors[color]}`}></span>
+      <span className={`inline-flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider ${textColor}`}>
+        <span className={`w-2 h-2 rounded-full ${dotColor}`}></span>
         {status}
       </span>
     );
@@ -267,159 +345,209 @@ export default function AdminDashboard() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="w-6 h-6 border-2 border-accent border-t-transparent rounded-full animate-spin"></div>
+      <div className="min-h-screen bg-[#09090b] text-white flex items-center justify-center">
+        <div className="w-8 h-8 border-2 border-[#db4444] border-t-transparent rounded-full animate-spin"></div>
       </div>
     );
   }
 
   if (!token) {
     return (
-      <div className="min-h-screen bg-background flex flex-col items-center justify-center p-6">
-        <div className="w-full max-w-sm bg-white dark:bg-zinc-900 border border-border rounded-lg p-8">
-          <h1 className="text-xl font-semibold text-foreground mb-6 text-center capitalize">{tenantSlug} Admin</h1>
+      <div className="min-h-screen bg-[#09090b] text-[#fafafa] flex flex-col items-center justify-center p-6">
+        <div className="w-full max-w-sm bg-[#141418] border border-[#272734] rounded-2xl p-8 shadow-2xl">
+          <div className="w-12 h-12 rounded-xl bg-[#db4444] text-white font-bold text-2xl flex items-center justify-center mx-auto mb-4 shadow-lg shadow-[#db4444]/30">
+            M
+          </div>
           
+          <h1 className="text-2xl font-extrabold text-white mb-2 text-center capitalize">{tenantSlug} Admin</h1>
+          <p className="text-xs text-[#a1a1aa] text-center mb-6">Store Merchant Login</p>
+
           {loginError && (
-            <div className="mb-4 p-3 bg-red-50 dark:bg-red-950/30 text-red-600 dark:text-red-400 text-sm rounded-md border border-red-100 dark:border-red-900/50">
+            <div className="mb-4 p-3 bg-red-950/40 text-red-400 text-xs rounded-lg border border-red-900/60">
               {loginError}
             </div>
           )}
 
           <form onSubmit={handleLogin} className="space-y-4">
             <div>
-              <label className="text-xs font-medium uppercase tracking-wider text-muted mb-1.5 block">Email</label>
+              <label className="text-xs font-medium uppercase tracking-wider text-[#a1a1aa] mb-1.5 block">Email</label>
               <input
                 type="email"
                 required
                 value={loginEmail}
                 onChange={e => setLoginEmail(e.target.value)}
-                className="w-full px-3 py-2.5 bg-transparent border border-border rounded-md text-sm text-foreground outline-none focus:border-accent focus:ring-1 focus:ring-accent transition-colors dark:border-zinc-700"
-                placeholder="admin@example.com"
+                className="w-full px-3.5 py-2.5 bg-[#09090b] border border-[#272734] rounded-lg text-sm text-white outline-none focus:border-[#db4444] transition-colors"
+                placeholder="owner@example.com"
               />
             </div>
             <div>
-              <label className="text-xs font-medium uppercase tracking-wider text-muted mb-1.5 block">Password</label>
+              <label className="text-xs font-medium uppercase tracking-wider text-[#a1a1aa] mb-1.5 block">Password</label>
               <input
                 type="password"
                 required
                 value={loginPassword}
                 onChange={e => setLoginPassword(e.target.value)}
-                className="w-full px-3 py-2.5 bg-transparent border border-border rounded-md text-sm text-foreground outline-none focus:border-accent focus:ring-1 focus:ring-accent transition-colors dark:border-zinc-700"
+                className="w-full px-3.5 py-2.5 bg-[#09090b] border border-[#272734] rounded-lg text-sm text-white outline-none focus:border-[#db4444] transition-colors"
                 placeholder="••••••••"
               />
             </div>
             <button
               type="submit"
               disabled={loginLoading}
-              className="w-full bg-accent text-background py-2.5 px-4 rounded-md text-sm font-medium hover:opacity-90 active:scale-[0.98] transition-all disabled:opacity-70 mt-2 flex justify-center items-center"
+              className="press w-full bg-[#db4444] hover:bg-[#e53838] text-white py-3 rounded-lg text-xs font-bold uppercase tracking-wider transition-all disabled:opacity-50 mt-2 flex justify-center items-center shadow-lg shadow-[#db4444]/20"
             >
               {loginLoading ? (
-                <div className="w-4 h-4 border-2 border-background border-t-transparent rounded-full animate-spin"></div>
+                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
               ) : (
-                'Sign In'
+                'Sign In to Dashboard'
               )}
             </button>
           </form>
+
+          <div className="mt-6 text-center">
+            <a href={`/${tenantSlug}`} className="text-xs text-[#a1a1aa] hover:text-[#db4444] transition-colors">
+              ← View Customer Storefront
+            </a>
+          </div>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-background">
-      <div className="max-w-6xl mx-auto px-6 py-8">
+    <div className="min-h-screen bg-[#09090b] text-[#fafafa] font-sans">
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 py-8">
         
         {/* Header */}
-        <div className="flex items-center justify-between mb-8">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-8 pb-6 border-b border-[#272734]">
           <div>
-            <h1 className="text-2xl font-semibold text-foreground capitalize">{tenantSlug}</h1>
-            <p className="text-sm text-muted">Store Administrator Dashboard</p>
+            <h1 className="text-2xl font-extrabold text-white capitalize flex items-center gap-3">
+              <span className="w-8 h-8 rounded-lg bg-[#db4444] text-white text-xs font-black flex items-center justify-center">
+                {tenantSlug?.charAt(0)}
+              </span>
+              <span>{tenantSlug} Merchant Dashboard</span>
+            </h1>
+            <p className="text-xs text-[#a1a1aa] mt-1">Manage catalog, upload product images, process orders in Naira (₦)</p>
           </div>
-          <button
-            onClick={handleLogout}
-            className="text-sm font-medium text-muted hover:text-foreground transition-colors px-4 py-2 border border-border rounded-md hover:bg-zinc-50 dark:hover:bg-zinc-800"
-          >
-            Logout
-          </button>
+
+          <div className="flex items-center gap-3">
+            <a
+              href={`/${tenantSlug}`}
+              target="_blank"
+              rel="noreferrer"
+              className="text-xs font-semibold px-4 py-2 border border-[#272734] rounded-lg hover:border-[#db4444] text-white transition-colors"
+            >
+              View Storefront ↗
+            </a>
+            <button
+              onClick={handleLogout}
+              className="text-xs font-semibold px-4 py-2 border border-[#272734] rounded-lg text-[#a1a1aa] hover:text-white hover:bg-[#141418] transition-colors"
+            >
+              Logout
+            </button>
+          </div>
         </div>
 
-        {/* Stats Row */}
+        {/* Analytics Stats Row */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-          <div className="p-5 border border-border rounded-lg bg-white dark:bg-zinc-900">
-            <h3 className="text-xs font-medium uppercase tracking-wider text-muted mb-2">Total Revenue</h3>
+          <div className="p-6 border border-[#272734] rounded-xl bg-[#141418]">
+            <h3 className="text-xs font-semibold uppercase tracking-wider text-[#a1a1aa] mb-2">Total Revenue</h3>
             {dataLoading ? (
-              <div className="h-8 bg-zinc-100 dark:bg-zinc-800 rounded animate-pulse w-32"></div>
+              <div className="skeleton h-8 w-32 rounded"></div>
             ) : (
-              <div className="text-2xl font-mono font-bold text-foreground">{formatCurrency(stats.revenue)}</div>
+              <div className="text-2xl font-mono font-bold text-[#db4444]">{formatNaira(stats.revenue)}</div>
             )}
           </div>
-          <div className="p-5 border border-border rounded-lg bg-white dark:bg-zinc-900">
-            <h3 className="text-xs font-medium uppercase tracking-wider text-muted mb-2">Total Orders</h3>
+
+          <div className="p-6 border border-[#272734] rounded-xl bg-[#141418]">
+            <h3 className="text-xs font-semibold uppercase tracking-wider text-[#a1a1aa] mb-2">Total Orders</h3>
             {dataLoading ? (
-              <div className="h-8 bg-zinc-100 dark:bg-zinc-800 rounded animate-pulse w-20"></div>
+              <div className="skeleton h-8 w-20 rounded"></div>
             ) : (
-              <div className="text-2xl font-mono font-bold text-foreground">{stats.totalOrders}</div>
+              <div className="text-2xl font-mono font-bold text-white">{stats.totalOrders}</div>
             )}
           </div>
-          <div className="p-5 border border-border rounded-lg bg-white dark:bg-zinc-900">
-            <h3 className="text-xs font-medium uppercase tracking-wider text-muted mb-2">Active Products</h3>
+
+          <div className="p-6 border border-[#272734] rounded-xl bg-[#141418]">
+            <h3 className="text-xs font-semibold uppercase tracking-wider text-[#a1a1aa] mb-2">Active Catalog Products</h3>
             {dataLoading ? (
-              <div className="h-8 bg-zinc-100 dark:bg-zinc-800 rounded animate-pulse w-20"></div>
+              <div className="skeleton h-8 w-20 rounded"></div>
             ) : (
-              <div className="text-2xl font-mono font-bold text-foreground">{stats.activeProducts}</div>
+              <div className="text-2xl font-mono font-bold text-white">{stats.activeProducts}</div>
             )}
           </div>
         </div>
 
+        {/* Catalog & Orders Grid */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          {/* Products Section */}
-          <section>
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-sm font-medium uppercase tracking-wider text-muted">Products</h2>
-              <button
-                onClick={() => openProductModal()}
-                className="bg-accent text-background py-1.5 px-3 rounded-md text-xs font-medium hover:opacity-90 transition-all"
-              >
-                + Add Product
-              </button>
+          
+          {/* Products Management Section */}
+          <section className="space-y-4">
+            <div className="flex items-center justify-between">
+              <h2 className="text-sm font-bold uppercase tracking-wider text-[#a1a1aa]">Product Catalog</h2>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setIsCategoryModalOpen(true)}
+                  className="bg-[#141418] border border-[#272734] text-white py-1.5 px-3 rounded-lg text-xs font-semibold hover:border-[#db4444] transition-colors"
+                >
+                  + Add Category
+                </button>
+                <button
+                  onClick={() => openProductModal()}
+                  className="bg-[#db4444] text-white py-1.5 px-3 rounded-lg text-xs font-semibold hover:bg-[#e53838] transition-colors"
+                >
+                  + Add Product
+                </button>
+              </div>
             </div>
             
-            <div className="border border-border rounded-lg bg-white dark:bg-zinc-900 overflow-hidden">
+            <div className="border border-[#272734] rounded-xl bg-[#141418] overflow-hidden shadow-xl">
               {dataLoading ? (
                 <div className="p-6 space-y-4">
                   {[...Array(3)].map((_, i) => (
-                    <div key={i} className="h-10 bg-zinc-100 dark:bg-zinc-800 rounded animate-pulse"></div>
+                    <div key={i} className="skeleton h-12 rounded-lg"></div>
                   ))}
                 </div>
               ) : products.length === 0 ? (
-                <div className="p-8 text-center text-muted text-sm">No products found.</div>
+                <div className="p-12 text-center text-[#a1a1aa] text-xs">
+                  No products in catalog. Click <strong>+ Add Product</strong> to list items.
+                </div>
               ) : (
-                <div className="divide-y divide-border">
+                <div className="divide-y divide-[#272734]">
                   {products.map(product => (
-                    <div key={product.id} className="p-4 flex items-center justify-between hover:bg-zinc-50 dark:hover:bg-zinc-800/50 transition-colors">
-                      <div className="flex items-center gap-3">
+                    <div key={product.id} className="p-4 flex items-center justify-between gap-3 hover:bg-[#1c1c24] transition-colors">
+                      <div className="flex items-center gap-3 min-w-0">
                         {product.image_url ? (
-                          <img src={product.image_url} alt={product.title} className="w-10 h-10 rounded object-cover border border-border" />
+                          <img src={product.image_url} alt={product.title} className="w-11 h-11 rounded-lg object-cover border border-[#272734]" />
                         ) : (
-                          <div className="w-10 h-10 rounded bg-zinc-100 dark:bg-zinc-800 border border-border flex items-center justify-center text-xs text-muted">Img</div>
+                          <div className="w-11 h-11 rounded-lg bg-[#09090b] border border-[#272734] flex items-center justify-center text-xs text-[#a1a1aa]">Img</div>
                         )}
-                        <div>
-                          <div className="text-sm font-medium text-foreground">{product.title}</div>
-                          <div className="text-xs text-muted">Stock: {product.stock}</div>
+                        <div className="min-w-0">
+                          <div className="text-xs sm:text-sm font-semibold text-white truncate">{product.title}</div>
+                          <div className="text-[11px] text-[#a1a1aa] flex items-center gap-2">
+                            <span>Category: {product.category || 'General'}</span>
+                            <span>• Stock: {product.stock}</span>
+                          </div>
                         </div>
                       </div>
+
                       <div className="flex items-center gap-4">
-                        <div className="font-mono text-sm font-medium">{formatCurrency(product.price)}</div>
+                        <div className="text-right font-mono">
+                          <div className="text-xs sm:text-sm font-bold text-[#db4444]">{formatNaira(product.price)}</div>
+                          {product.original_price && (
+                            <div className="text-[10px] text-[#a1a1aa] line-through">{formatNaira(product.original_price)}</div>
+                          )}
+                        </div>
                         <div className="flex gap-2">
                           <button
                             onClick={() => openProductModal(product)}
-                            className="text-xs font-medium text-muted hover:text-foreground transition-colors"
+                            className="text-xs font-semibold text-[#a1a1aa] hover:text-white px-2 py-1 bg-[#272734] rounded transition-colors"
                           >
                             Edit
                           </button>
                           <button
                             onClick={() => handleDeleteProduct(product.id)}
-                            className="text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950/30 px-2 py-1 rounded text-xs font-medium transition-colors"
+                            className="text-xs font-semibold text-red-400 hover:text-red-300 px-2 py-1 bg-red-950/40 rounded transition-colors"
                           >
                             Delete
                           </button>
@@ -433,34 +561,34 @@ export default function AdminDashboard() {
           </section>
 
           {/* Orders Section */}
-          <section>
-            <h2 className="text-sm font-medium uppercase tracking-wider text-muted mb-4">Recent Orders</h2>
-            <div className="border border-border rounded-lg bg-white dark:bg-zinc-900 overflow-hidden">
+          <section className="space-y-4">
+            <h2 className="text-sm font-bold uppercase tracking-wider text-[#a1a1aa]">Recent Store Orders</h2>
+            <div className="border border-[#272734] rounded-xl bg-[#141418] overflow-hidden shadow-xl">
               {dataLoading ? (
                 <div className="p-6 space-y-4">
                   {[...Array(3)].map((_, i) => (
-                    <div key={i} className="h-10 bg-zinc-100 dark:bg-zinc-800 rounded animate-pulse"></div>
+                    <div key={i} className="skeleton h-12 rounded-lg"></div>
                   ))}
                 </div>
               ) : orders.length === 0 ? (
-                <div className="p-8 text-center text-muted text-sm">No orders yet.</div>
+                <div className="p-12 text-center text-[#a1a1aa] text-xs">No orders placed yet.</div>
               ) : (
-                <div className="divide-y divide-border">
+                <div className="divide-y divide-[#272734]">
                   {orders.map(order => (
-                    <div key={order.id} className="p-4 flex flex-col gap-3 hover:bg-zinc-50 dark:hover:bg-zinc-800/50 transition-colors">
+                    <div key={order.id} className="p-4 flex flex-col gap-3 hover:bg-[#1c1c24] transition-colors">
                       <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <span className="font-mono text-xs text-muted">#{order.id.substring(0, 8)}</span>
-                          <span className="text-xs text-muted">&bull; {new Date(order.created_at || Date.now()).toLocaleDateString()}</span>
+                        <div className="flex items-center gap-2 font-mono text-xs">
+                          <span className="text-white font-bold">#{order.id.substring(0, 8)}</span>
+                          <span className="text-[#a1a1aa]">• {new Date(order.created_at || Date.now()).toLocaleDateString()}</span>
                         </div>
-                        <div className="font-mono text-sm font-medium">{formatCurrency(order.total_amount)}</div>
+                        <div className="font-mono text-sm font-bold text-[#db4444]">{formatNaira(order.total_amount)}</div>
                       </div>
                       <div className="flex items-center justify-between">
                         {getStatusBadge(order.status)}
                         <select
                           value={order.status}
                           onChange={(e) => handleUpdateOrderStatus(order.id, e.target.value)}
-                          className="text-xs px-2 py-1 bg-transparent border border-border rounded outline-none cursor-pointer hover:border-zinc-400 dark:border-zinc-700 dark:hover:border-zinc-500"
+                          className="text-xs font-semibold px-2.5 py-1 bg-[#09090b] border border-[#272734] text-white rounded-lg outline-none cursor-pointer hover:border-[#db4444]"
                         >
                           <option value="pending">Pending</option>
                           <option value="paid">Paid</option>
@@ -478,74 +606,139 @@ export default function AdminDashboard() {
         </div>
       </div>
 
-      {/* Product Modal */}
+      {/* PRODUCT ADD / EDIT MODAL (With Image Upload Support) */}
       {isProductModalOpen && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white dark:bg-zinc-900 border border-border rounded-lg p-6 w-full max-w-lg shadow-xl">
-            <h2 className="text-lg font-semibold mb-6">
-              {productForm.id ? 'Edit Product' : 'Add New Product'}
-            </h2>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="fixed inset-0 bg-black/70 backdrop-blur-sm" onClick={closeProductModal}></div>
+          
+          <div className="relative bg-[#141418] border border-[#272734] rounded-2xl p-6 sm:p-8 w-full max-w-lg shadow-2xl z-10 space-y-5 animate-in zoom-in-95 duration-200">
+            <div className="flex items-center justify-between border-b border-[#272734] pb-4">
+              <h3 className="text-lg font-extrabold text-white">
+                {productForm.id ? 'Edit Product Item' : 'Add New Product Item'}
+              </h3>
+              <button onClick={closeProductModal} className="text-[#a1a1aa] hover:text-white">✕</button>
+            </div>
+
             <form onSubmit={handleProductSubmit} className="space-y-4">
               <div>
-                <label className="text-xs font-medium uppercase tracking-wider text-muted mb-1.5 block">Title</label>
+                <label className="text-xs font-semibold uppercase tracking-wider text-[#a1a1aa] mb-1 block">Title</label>
                 <input
                   type="text"
                   required
                   value={productForm.title}
                   onChange={e => setProductForm({ ...productForm, title: e.target.value })}
-                  className="w-full px-3 py-2.5 bg-transparent border border-border rounded-md text-sm text-foreground outline-none focus:border-accent focus:ring-1 focus:ring-accent transition-colors dark:border-zinc-700"
+                  className="w-full px-3.5 py-2 bg-[#09090b] border border-[#272734] rounded-lg text-sm text-white outline-none focus:border-[#db4444]"
+                  placeholder="e.g. Wireless Gaming Mouse"
                 />
               </div>
+
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="text-xs font-medium uppercase tracking-wider text-muted mb-1.5 block">Price</label>
+                  <label className="text-xs font-semibold uppercase tracking-wider text-[#a1a1aa] mb-1 block">Price (NGN ₦)</label>
                   <input
                     type="number"
                     step="0.01"
                     required
                     value={productForm.price}
                     onChange={e => setProductForm({ ...productForm, price: e.target.value })}
-                    className="w-full px-3 py-2.5 bg-transparent border border-border rounded-md text-sm text-foreground outline-none focus:border-accent focus:ring-1 focus:ring-accent transition-colors dark:border-zinc-700"
+                    className="w-full px-3.5 py-2 bg-[#09090b] border border-[#272734] rounded-lg text-sm text-white outline-none focus:border-[#db4444]"
+                    placeholder="120000"
                   />
                 </div>
                 <div>
-                  <label className="text-xs font-medium uppercase tracking-wider text-muted mb-1.5 block">Stock</label>
+                  <label className="text-xs font-semibold uppercase tracking-wider text-[#a1a1aa] mb-1 block">Original Strikethrough (₦)</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    value={productForm.original_price}
+                    onChange={e => setProductForm({ ...productForm, original_price: e.target.value })}
+                    className="w-full px-3.5 py-2 bg-[#09090b] border border-[#272734] rounded-lg text-sm text-white outline-none focus:border-[#db4444]"
+                    placeholder="150000"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-xs font-semibold uppercase tracking-wider text-[#a1a1aa] mb-1 block">Stock Quantity</label>
                   <input
                     type="number"
                     required
                     value={productForm.stock}
                     onChange={e => setProductForm({ ...productForm, stock: e.target.value })}
-                    className="w-full px-3 py-2.5 bg-transparent border border-border rounded-md text-sm text-foreground outline-none focus:border-accent focus:ring-1 focus:ring-accent transition-colors dark:border-zinc-700"
+                    className="w-full px-3.5 py-2 bg-[#09090b] border border-[#272734] rounded-lg text-sm text-white outline-none focus:border-[#db4444]"
+                    placeholder="25"
                   />
                 </div>
+                <div>
+                  <label className="text-xs font-semibold uppercase tracking-wider text-[#a1a1aa] mb-1 block">Category</label>
+                  <select
+                    value={productForm.category}
+                    onChange={e => setProductForm({ ...productForm, category: e.target.value })}
+                    className="w-full px-3.5 py-2 bg-[#09090b] border border-[#272734] rounded-lg text-sm text-white outline-none focus:border-[#db4444]"
+                  >
+                    <option value="General">General</option>
+                    <option value="Phones">Phones</option>
+                    <option value="Computers">Computers</option>
+                    <option value="Smartwatch">Smartwatch</option>
+                    <option value="Camera">Camera</option>
+                    <option value="Headphones">Headphones</option>
+                    <option value="Gaming">Gaming</option>
+                    {categories.map(c => (
+                      <option key={c.id} value={c.name}>{c.name}</option>
+                    ))}
+                  </select>
+                </div>
               </div>
+
+              {/* IMAGE UPLOAD & IMAGE URL SECTION */}
               <div>
-                <label className="text-xs font-medium uppercase tracking-wider text-muted mb-1.5 block">Image URL</label>
+                <label className="text-xs font-semibold uppercase tracking-wider text-[#a1a1aa] mb-1 block">
+                  Product Image (File Upload or Image URL)
+                </label>
+                
+                <div className="flex gap-2 mb-2">
+                  <label className="flex-1 cursor-pointer bg-[#181824] hover:bg-[#272734] border border-[#272734] rounded-lg py-2 px-3 text-center text-xs font-semibold text-white transition-colors flex items-center justify-center gap-2">
+                    <span>📤 Upload Image File</span>
+                    <input type="file" accept="image/*" onChange={handleImageFileUpload} className="hidden" />
+                  </label>
+                </div>
+
+                {uploadingImage && (
+                  <div className="text-xs text-[#db4444] font-mono mb-2">Uploading image file to server...</div>
+                )}
+
                 <input
                   type="url"
                   value={productForm.image_url}
                   onChange={e => setProductForm({ ...productForm, image_url: e.target.value })}
-                  className="w-full px-3 py-2.5 bg-transparent border border-border rounded-md text-sm text-foreground outline-none focus:border-accent focus:ring-1 focus:ring-accent transition-colors dark:border-zinc-700"
+                  className="w-full px-3.5 py-2 bg-[#09090b] border border-[#272734] rounded-lg text-xs text-white outline-none focus:border-[#db4444]"
                   placeholder="https://..."
                 />
+
+                {productForm.image_url && (
+                  <div className="mt-2 flex items-center gap-3 p-2 bg-[#09090b] border border-[#272734] rounded-lg">
+                    <img src={productForm.image_url} alt="Preview" className="w-12 h-12 object-cover rounded" />
+                    <span className="text-[11px] text-[#a1a1aa] truncate flex-1">{productForm.image_url}</span>
+                    <button type="button" onClick={() => setProductForm({ ...productForm, image_url: '' })} className="text-xs text-red-400">Remove</button>
+                  </div>
+                )}
               </div>
-              <div className="flex items-center justify-end gap-3 mt-8">
+
+              <div className="flex items-center justify-end gap-3 pt-4 border-t border-[#272734]">
                 <button
                   type="button"
                   onClick={closeProductModal}
-                  className="px-4 py-2 text-sm font-medium text-muted hover:text-foreground transition-colors"
+                  className="px-4 py-2 text-xs font-semibold text-[#a1a1aa] hover:text-white"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={productSubmitLoading}
-                  className="bg-accent text-background py-2 px-4 rounded-md text-sm font-medium hover:opacity-90 active:scale-[0.98] transition-all disabled:opacity-70 flex items-center"
+                  className="press bg-[#db4444] hover:bg-[#e53838] text-white py-2 px-5 rounded-lg text-xs font-bold uppercase tracking-wider transition-all shadow-lg flex items-center"
                 >
-                  {productSubmitLoading ? (
-                    <div className="w-4 h-4 border-2 border-background border-t-transparent rounded-full animate-spin mr-2"></div>
-                  ) : null}
-                  {productForm.id ? 'Save Changes' : 'Create Product'}
+                  {productSubmitLoading ? 'Saving...' : productForm.id ? 'Save Changes' : 'Create Product'}
                 </button>
               </div>
             </form>
@@ -553,21 +746,60 @@ export default function AdminDashboard() {
         </div>
       )}
 
-      {/* Toasts */}
+      {/* CATEGORY ADD MODAL */}
+      {isCategoryModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="fixed inset-0 bg-black/70 backdrop-blur-sm" onClick={() => setIsCategoryModalOpen(false)}></div>
+          
+          <div className="relative bg-[#141418] border border-[#272734] rounded-2xl p-6 w-full max-w-sm z-10 space-y-4 shadow-2xl">
+            <h3 className="text-base font-extrabold text-white">Add Store Category</h3>
+            <form onSubmit={handleAddCategory} className="space-y-3">
+              <div>
+                <label className="text-xs text-[#a1a1aa] block mb-1">Category Name</label>
+                <input
+                  type="text"
+                  required
+                  value={newCatName}
+                  onChange={e => setNewCatName(e.target.value)}
+                  className="w-full px-3 py-2 bg-[#09090b] border border-[#272734] rounded-lg text-sm text-white outline-none focus:border-[#db4444]"
+                  placeholder="e.g. Footwear"
+                />
+              </div>
+              <div>
+                <label className="text-xs text-[#a1a1aa] block mb-1">Category Emoji Icon</label>
+                <input
+                  type="text"
+                  value={newCatIcon}
+                  onChange={e => setNewCatIcon(e.target.value)}
+                  className="w-full px-3 py-2 bg-[#09090b] border border-[#272734] rounded-lg text-sm text-white outline-none focus:border-[#db4444]"
+                  placeholder="👟"
+                />
+              </div>
+              <div className="flex justify-end gap-2 pt-2">
+                <button type="button" onClick={() => setIsCategoryModalOpen(false)} className="px-3 py-1.5 text-xs text-[#a1a1aa]">Cancel</button>
+                <button type="submit" className="px-4 py-1.5 bg-[#db4444] text-white text-xs font-bold rounded-lg">Save</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Toast Notifications */}
       <div className="fixed bottom-6 right-6 z-50 flex flex-col gap-2">
         {toasts.map(toast => (
           <div
             key={toast.id}
-            className={`px-4 py-3 rounded-md border text-sm font-medium shadow-lg transition-all animate-in slide-in-from-right-8 ${
-              toast.type === 'error' 
-                ? 'bg-red-50 text-red-900 border-red-200 dark:bg-red-950 dark:text-red-200 dark:border-red-900' 
-                : 'bg-zinc-50 text-zinc-900 border-zinc-200 dark:bg-zinc-900 dark:text-zinc-100 dark:border-zinc-800 border-l-4 border-l-emerald-500'
+            className={`px-4 py-3 rounded-lg border text-xs font-semibold shadow-2xl transition-all ${
+              toast.type === 'error'
+                ? 'bg-red-950 text-red-200 border-red-900'
+                : 'bg-[#141418] text-white border-[#272734] border-l-4 border-l-[#db4444]'
             }`}
           >
             {toast.message}
           </div>
         ))}
       </div>
+
     </div>
   );
 }

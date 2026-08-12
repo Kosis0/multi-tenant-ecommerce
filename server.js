@@ -3,12 +3,46 @@ const cors = require('cors');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const pool = require('./db');
+const multer = require('multer');
+const path = require('path');
+const fs = require('fs');
 require('dotenv').config();
 
 const app = express();
 const PORT = process.env.PORT || 5000;
 
-app.use(express.json());
+// Body parser
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+
+// Static uploads directory
+const uploadsDir = path.join(__dirname, 'uploads');
+if (!fs.existsSync(uploadsDir)) {
+  fs.mkdirSync(uploadsDir, { recursive: true });
+}
+app.use('/uploads', express.static(uploadsDir));
+
+// Multer storage for image uploads
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => cb(null, uploadsDir),
+  filename: (req, file, cb) => {
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    cb(null, 'img-' + uniqueSuffix + path.extname(file.originalname));
+  }
+});
+const upload = multer({ 
+  storage,
+  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB
+  fileFilter: (req, file, cb) => {
+    if (file.mimetype.startsWith('image/')) {
+      cb(null, true);
+    } else {
+      cb(new Error('Only image files are allowed'));
+    }
+  }
+});
+
+// CORS
 app.use(cors({
   origin: [
     'http://localhost:3000',
@@ -67,6 +101,21 @@ app.get('/api/health', async (req, res, next) => {
   }
 });
 
+// POST /api/upload — Product Image Upload
+app.post('/api/upload', resolveTenant, authenticateToken, requireStoreOwnership, upload.single('image'), (req, res) => {
+  try {
+    if (!req.file) {
+      return sendError(res, 'No image file uploaded');
+    }
+    const host = req.get('host');
+    const protocol = req.protocol;
+    const imageUrl = `${protocol}://${host}/uploads/${req.file.filename}`;
+    sendSuccess(res, { url: imageUrl });
+  } catch (err) {
+    sendError(res, err.message);
+  }
+});
+
 // POST /api/tenants/register
 app.post('/api/tenants/register', async (req, res, next) => {
   const { name, slug, email, password } = req.body;
@@ -95,6 +144,22 @@ app.post('/api/tenants/register', async (req, res, next) => {
       [email, passwordHash, tenant.id]
     );
     const user = userRes.rows[0];
+
+    // Seed default categories
+    const defaultCategories = [
+      ['Phones', '📱'],
+      ['Computers', '💻'],
+      ['Smartwatch', '⌚'],
+      ['Camera', '📷'],
+      ['Headphones', '🎧'],
+      ['Gaming', '🎮']
+    ];
+    for (const [catName, icon] of defaultCategories) {
+      await client.query(
+        'INSERT INTO categories (tenant_id, name, icon) VALUES ($1, $2, $3) ON CONFLICT DO NOTHING',
+        [tenant.id, catName, icon]
+      );
+    }
 
     await client.query('COMMIT');
     sendSuccess(res, { tenant, user }, 201);
@@ -135,26 +200,64 @@ app.post('/api/auth/login', async (req, res, next) => {
   }
 });
 
-// GET /api/products
+// GET /api/products — Enhanced with category, original_price, rating, etc.
 app.get('/api/products', resolveTenant, async (req, res, next) => {
   try {
-    const { rows: products } = await pool.query(
-      'SELECT id, title, price, stock, image_url FROM products WHERE tenant_id = $1',
+    const { category, search } = req.query;
+    let query = `
+      SELECT id, title, price, stock, image_url, 
+             COALESCE(category, 'General') as category, 
+             description, original_price, 
+             COALESCE(is_featured, false) as is_featured, 
+             COALESCE(is_new_arrival, false) as is_new_arrival, 
+             COALESCE(rating, 4.5) as rating, 
+             COALESCE(review_count, 12) as review_count
+      FROM products 
+      WHERE tenant_id = $1
+    `;
+    const queryParams = [req.tenant.id];
+
+    if (category && category !== 'All') {
+      queryParams.push(category);
+      query += ` AND category = $${queryParams.length}`;
+    }
+
+    if (search) {
+      queryParams.push(`%${search}%`);
+      query += ` AND (title ILIKE $${queryParams.length} OR category ILIKE $${queryParams.length})`;
+    }
+
+    query += ' ORDER BY created_at DESC, id DESC';
+
+    const { rows: products } = await pool.query(query, queryParams);
+
+    // Fetch categories for tenant
+    const { rows: categories } = await pool.query(
+      'SELECT id, name, icon FROM categories WHERE tenant_id = $1 ORDER BY name ASC',
       [req.tenant.id]
     );
-    sendSuccess(res, { store: req.tenant, products });
+
+    sendSuccess(res, { store: req.tenant, products, categories });
   } catch (err) {
     next(err);
   }
 });
 
-// POST /api/products
+// POST /api/products — Create product with expanded fields
 app.post('/api/products', resolveTenant, authenticateToken, requireStoreOwnership, async (req, res, next) => {
-  const { title, price, stock, image_url } = req.body;
+  const { 
+    title, price, stock, image_url, 
+    category = 'General', description = '', 
+    original_price = null, is_featured = false, is_new_arrival = false 
+  } = req.body;
+
   try {
     const { rows } = await pool.query(
-      'INSERT INTO products (title, price, stock, image_url, tenant_id) VALUES ($1, $2, $3, $4, $5) RETURNING *',
-      [title, price, stock, image_url, req.tenant.id]
+      `INSERT INTO products (
+        title, price, stock, image_url, tenant_id, 
+        category, description, original_price, is_featured, is_new_arrival
+       ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING *`,
+      [title, price, stock, image_url, req.tenant.id, category, description, original_price, is_featured, is_new_arrival]
     );
     sendSuccess(res, rows[0], 201);
   } catch (err) {
@@ -162,20 +265,29 @@ app.post('/api/products', resolveTenant, authenticateToken, requireStoreOwnershi
   }
 });
 
-// PUT /api/products/:id
+// PUT /api/products/:id — Update product with expanded fields
 app.put('/api/products/:id', resolveTenant, authenticateToken, requireStoreOwnership, async (req, res, next) => {
   const { id } = req.params;
-  const { title, price, stock, image_url } = req.body;
+  const { 
+    title, price, stock, image_url, 
+    category, description, original_price, is_featured, is_new_arrival 
+  } = req.body;
+
   try {
     const { rows } = await pool.query(
       `UPDATE products 
        SET title = COALESCE($1, title), 
            price = COALESCE($2, price), 
            stock = COALESCE($3, stock), 
-           image_url = COALESCE($4, image_url) 
-       WHERE id = $5 AND tenant_id = $6 
+           image_url = COALESCE($4, image_url),
+           category = COALESCE($5, category),
+           description = COALESCE($6, description),
+           original_price = $7,
+           is_featured = COALESCE($8, is_featured),
+           is_new_arrival = COALESCE($9, is_new_arrival)
+       WHERE id = $10 AND tenant_id = $11 
        RETURNING *`,
-      [title, price, stock, image_url, id, req.tenant.id]
+      [title, price, stock, image_url, category, description, original_price, is_featured, is_new_arrival, id, req.tenant.id]
     );
     if (rows.length === 0) return sendError(res, 'Product not found', 404);
     sendSuccess(res, rows[0]);
@@ -199,9 +311,87 @@ app.delete('/api/products/:id', resolveTenant, authenticateToken, requireStoreOw
   }
 });
 
-// POST /api/orders
+// GET /api/categories
+app.get('/api/categories', resolveTenant, async (req, res, next) => {
+  try {
+    const { rows } = await pool.query('SELECT * FROM categories WHERE tenant_id = $1 ORDER BY name ASC', [req.tenant.id]);
+    sendSuccess(res, rows);
+  } catch (err) {
+    next(err);
+  }
+});
+
+// POST /api/categories
+app.post('/api/categories', resolveTenant, authenticateToken, requireStoreOwnership, async (req, res, next) => {
+  const { name, icon = '📦' } = req.body;
+  try {
+    const { rows } = await pool.query(
+      'INSERT INTO categories (tenant_id, name, icon) VALUES ($1, $2, $3) RETURNING *',
+      [req.tenant.id, name, icon]
+    );
+    sendSuccess(res, rows[0], 201);
+  } catch (err) {
+    next(err);
+  }
+});
+
+// DELETE /api/categories/:id
+app.delete('/api/categories/:id', resolveTenant, authenticateToken, requireStoreOwnership, async (req, res, next) => {
+  const { id } = req.params;
+  try {
+    await pool.query('DELETE FROM categories WHERE id = $1 AND tenant_id = $2', [id, req.tenant.id]);
+    sendSuccess(res, { deleted: true });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// Wishlist Endpoints
+app.get('/api/wishlist', resolveTenant, async (req, res, next) => {
+  const { sessionId } = req.query;
+  if (!sessionId) return sendSuccess(res, []);
+  try {
+    const { rows } = await pool.query(
+      'SELECT product_id FROM wishlists WHERE tenant_id = $1 AND session_id = $2',
+      [req.tenant.id, sessionId]
+    );
+    sendSuccess(res, rows.map(r => r.product_id));
+  } catch (err) {
+    next(err);
+  }
+});
+
+app.post('/api/wishlist', resolveTenant, async (req, res, next) => {
+  const { sessionId, productId } = req.body;
+  if (!sessionId || !productId) return sendError(res, 'Session ID and Product ID required');
+  try {
+    await pool.query(
+      'INSERT INTO wishlists (tenant_id, session_id, product_id) VALUES ($1, $2, $3) ON CONFLICT DO NOTHING',
+      [req.tenant.id, sessionId, productId]
+    );
+    sendSuccess(res, { added: true });
+  } catch (err) {
+    next(err);
+  }
+});
+
+app.delete('/api/wishlist/:productId', resolveTenant, async (req, res, next) => {
+  const { productId } = req.params;
+  const { sessionId } = req.query;
+  try {
+    await pool.query(
+      'DELETE FROM wishlists WHERE tenant_id = $1 AND session_id = $2 AND product_id = $3',
+      [req.tenant.id, sessionId, productId]
+    );
+    sendSuccess(res, { removed: true });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// POST /api/orders — Create order (atomic transaction)
 app.post('/api/orders', resolveTenant, async (req, res, next) => {
-  const { items } = req.body;
+  const { items, paymentMethod = 'card' } = req.body;
   if (!items || items.length === 0) return sendError(res, 'Items required');
 
   const client = await pool.connect();
@@ -229,8 +419,8 @@ app.post('/api/orders', resolveTenant, async (req, res, next) => {
     }
 
     const orderRes = await client.query(
-  "INSERT INTO orders (tenant_id, total_amount, status, created_at) VALUES ($1, $2, 'pending', NOW()) RETURNING *",
-  [req.tenant.id, total_amount]
+      "INSERT INTO orders (tenant_id, total_amount, status, created_at) VALUES ($1, $2, 'pending', NOW()) RETURNING *",
+      [req.tenant.id, total_amount]
     );
     const order = orderRes.rows[0];
 
@@ -246,7 +436,6 @@ app.post('/api/orders', resolveTenant, async (req, res, next) => {
 
     await client.query('COMMIT');
     
-    // Fetch inserted items for response
     const { rows: orderItems } = await pool.query('SELECT * FROM order_items WHERE order_id = $1', [order.id]);
     sendSuccess(res, { ...order, items: orderItems }, 201);
   } catch (err) {
@@ -254,6 +443,53 @@ app.post('/api/orders', resolveTenant, async (req, res, next) => {
     sendError(res, err.message);
   } finally {
     client.release();
+  }
+});
+
+// POST /api/checkout/create-session — Stripe / Payment Scaffolding (Supports NGN Naira)
+app.post('/api/checkout/create-session', resolveTenant, async (req, res, next) => {
+  const { items } = req.body;
+  if (!items || items.length === 0) return sendError(res, 'Items required');
+
+  try {
+    let stripeSecret = process.env.STRIPE_SECRET_KEY;
+    
+    // If Stripe secret key exists, create actual Stripe Session
+    if (stripeSecret) {
+      const stripe = require('stripe')(stripeSecret);
+      const lineItems = items.map(item => ({
+        price_data: {
+          currency: 'ngn', // Naira
+          product_data: {
+            name: item.title,
+            images: item.image_url ? [item.image_url] : [],
+          },
+          unit_amount: Math.round(Number(item.price) * 100), // In kobo / cents
+        },
+        quantity: item.quantity,
+      }));
+
+      const session = await stripe.checkout.sessions.create({
+        payment_method_types: ['card'],
+        line_items: lineItems,
+        mode: 'payment',
+        success_url: `${req.get('origin') || 'http://localhost:3000'}/${req.tenant.slug}?checkout=success`,
+        cancel_url: `${req.get('origin') || 'http://localhost:3000'}/${req.tenant.slug}?checkout=cancel`,
+      });
+
+      return sendSuccess(res, { url: session.url, isMock: false });
+    }
+
+    // Mock payment gateway response for testing without active Stripe API keys
+    const mockSessionId = 'cs_test_' + Date.now();
+    sendSuccess(res, {
+      url: null,
+      isMock: true,
+      sessionId: mockSessionId,
+      message: 'Stripe Gateway Scaffolding active. Add STRIPE_SECRET_KEY in .env to process real cards.'
+    });
+  } catch (err) {
+    next(err);
   }
 });
 
@@ -272,6 +508,7 @@ app.get('/api/orders', resolveTenant, authenticateToken, requireStoreOwnership, 
       LEFT JOIN order_items oi ON o.id = oi.order_id
       WHERE o.tenant_id = $1
       GROUP BY o.id
+      ORDER BY o.created_at DESC
     `, [req.tenant.id]);
     sendSuccess(res, rows);
   } catch (err) {
@@ -308,8 +545,6 @@ app.post('/api/orders/:id/pay', resolveTenant, async (req, res, next) => {
       [id, req.tenant.id]
     );
     if (orders.length === 0) return sendError(res, 'Order not found', 404);
-    
-    if (orders[0].status !== 'pending') return sendError(res, 'Order is not pending');
     
     const { rows } = await pool.query(
       "UPDATE orders SET status = 'paid' WHERE id = $1 RETURNING *",
@@ -349,7 +584,7 @@ app.get('/api/admin/stats', resolveTenant, authenticateToken, requireStoreOwners
 // Global Error Handler
 app.use((err, req, res, next) => {
   console.error(err.stack);
-  res.status(500).json({ success: false, error: 'Internal server error' });
+  res.status(500).json({ success: false, error: err.message || 'Internal server error' });
 });
 
 app.listen(PORT, () => {

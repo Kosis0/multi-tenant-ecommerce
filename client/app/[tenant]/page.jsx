@@ -10,27 +10,61 @@ export default function StorefrontPage({ params }) {
   const [error, setError] = useState(null);
   const [storeData, setStoreData] = useState(null);
   const [products, setProducts] = useState([]);
-  
+  const [categories, setCategories] = useState([]);
+
+  // Filters & State
+  const [selectedCategory, setSelectedCategory] = useState('All');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [wishlist, setWishlist] = useState([]);
   const [cart, setCart] = useState([]);
   const [isCartOpen, setIsCartOpen] = useState(false);
-  
-  const [toasts, setToasts] = useState([]);
+  const [isWishlistOpen, setIsWishlistOpen] = useState(false);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
+  // Payment Modal Scaffolding State
+  const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
+  const [paymentLoading, setPaymentLoading] = useState(false);
+  const [paymentSuccess, setPaymentSuccess] = useState(null);
+
+  // Countdown Timer State (Flash Sales)
+  const [timeLeft, setTimeLeft] = useState({
+    days: 3,
+    hours: 23,
+    minutes: 19,
+    seconds: 56,
+  });
+
+  const [toasts, setToasts] = useState([]);
   const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
 
+  // Live Flash Sale Timer Effect
   useEffect(() => {
-    async function fetchProducts() {
+    const timer = setInterval(() => {
+      setTimeLeft(prev => {
+        if (prev.seconds > 0) return { ...prev, seconds: prev.seconds - 1 };
+        if (prev.minutes > 0) return { ...prev, minutes: 59, seconds: 59 };
+        if (prev.hours > 0) return { ...prev, hours: prev.hours - 1, minutes: 59, seconds: 59 };
+        if (prev.days > 0) return { ...prev, days: prev.days - 1, hours: 23, minutes: 59, seconds: 59 };
+        return prev;
+      });
+    }, 1000);
+    return () => clearInterval(timer);
+  }, []);
+
+  // Fetch Storefront Data
+  useEffect(() => {
+    async function fetchStorefront() {
       try {
         const res = await fetch(`${API_URL}/api/products?tenant=${tenant}`);
-        if (!res.ok) {
-          throw new Error('Store not found');
-        }
+        if (!res.ok) throw new Error('Store not found');
+        
         const json = await res.json();
         if (json.success) {
-          setStoreData(json.data);
+          setStoreData(json.data.store);
           setProducts(json.data.products || []);
+          setCategories(json.data.categories || []);
         } else {
-          throw new Error('Failed to load store');
+          throw new Error(json.error || 'Failed to load store');
         }
       } catch (err) {
         setError(err.message);
@@ -38,9 +72,10 @@ export default function StorefrontPage({ params }) {
         setLoading(false);
       }
     }
-    fetchProducts();
+    fetchStorefront();
   }, [tenant, API_URL]);
 
+  // Toast Helper
   const addToast = (message, type = 'success') => {
     const id = Date.now();
     setToasts(prev => [...prev, { id, message, type }]);
@@ -49,6 +84,27 @@ export default function StorefrontPage({ params }) {
     }, 3000);
   };
 
+  // Currency Formatter (Naira ₦)
+  const formatNaira = (amount) => {
+    const num = Number(amount) || 0;
+    return '₦' + num.toLocaleString('en-NG', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  };
+
+  // Wishlist Toggle
+  const toggleWishlist = (productId) => {
+    setWishlist(prev => {
+      const exists = prev.includes(productId);
+      if (exists) {
+        addToast('Removed from Wishlist', 'info');
+        return prev.filter(id => id !== productId);
+      } else {
+        addToast('Added to Wishlist!', 'success');
+        return [...prev, productId];
+      }
+    });
+  };
+
+  // Add To Cart
   const addToCart = (product) => {
     if (product.stock === 0) return;
     
@@ -59,16 +115,19 @@ export default function StorefrontPage({ params }) {
           addToast(`Only ${product.stock} in stock`, 'error');
           return prev;
         }
+        addToast(`Updated ${product.title} quantity in Cart`, 'success');
         return prev.map(item => 
           item.product_id === product.id 
             ? { ...item, quantity: item.quantity + 1 }
             : item
         );
       }
+      addToast(`Added ${product.title} to Cart!`, 'success');
       return [...prev, { 
         product_id: product.id, 
         title: product.title, 
         price: product.price, 
+        image_url: product.image_url,
         quantity: 1,
         stock: product.stock
       }];
@@ -92,39 +151,85 @@ export default function StorefrontPage({ params }) {
 
   const removeFromCart = (productId) => {
     setCart(prev => prev.filter(item => item.product_id !== productId));
+    addToast('Item removed from cart', 'info');
   };
 
-  const placeOrder = async () => {
+  // Stripe Payment Scaffolding & Order Execution
+  const initiatePayment = async () => {
+    if (cart.length === 0) return;
+    setPaymentLoading(true);
+
     try {
-      const res = await fetch(`${API_URL}/api/orders?tenant=${tenant}`, {
+      // 1. Create order in backend database
+      const orderRes = await fetch(`${API_URL}/api/orders?tenant=${tenant}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           items: cart.map(item => ({ product_id: item.product_id, quantity: item.quantity }))
         })
       });
-      const data = await res.json();
-      if (res.ok && data.success) {
+      const orderData = await orderRes.json();
+      if (!orderRes.ok || !orderData.success) {
+        throw new Error(orderData.error || 'Failed to initialize order');
+      }
+
+      const createdOrder = orderData.data;
+
+      // 2. Call Stripe Checkout Session API endpoint
+      const checkoutRes = await fetch(`${API_URL}/api/checkout/create-session?tenant=${tenant}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          orderId: createdOrder.id,
+          items: cart.map(item => ({ title: item.title, price: item.price, quantity: item.quantity, image_url: item.image_url }))
+        })
+      });
+      const checkoutData = await checkoutRes.json();
+
+      if (checkoutData.success && checkoutData.data?.url) {
+        // Redirect to live Stripe Checkout page if STRIPE_SECRET_KEY is configured
+        window.location.href = checkoutData.data.url;
+      } else {
+        // Show Stripe Payment Gateway Scaffolding Modal (Demo Mode)
+        setPaymentSuccess({
+          orderId: createdOrder.id,
+          totalAmount: createdOrder.total_amount,
+          isMock: true,
+          message: checkoutData.data?.message || 'Stripe Gateway Scaffolding Active. Payment processed in demo mode.'
+        });
         setCart([]);
         setIsCartOpen(false);
-        addToast('Order placed successfully!');
-      } else {
-        addToast(data.error || 'Error placing order', 'error');
+        setIsPaymentModalOpen(true);
       }
     } catch (err) {
-      addToast('Network error placing order', 'error');
+      addToast(err.message || 'Payment initiation failed', 'error');
+    } finally {
+      setPaymentLoading(false);
     }
   };
 
+  // Filtered Products
+  const filteredProducts = products.filter(p => {
+    const matchesCategory = selectedCategory === 'All' || p.category?.toLowerCase() === selectedCategory.toLowerCase();
+    const matchesSearch = p.title.toLowerCase().includes(searchQuery.toLowerCase()) || 
+                          (p.category && p.category.toLowerCase().includes(searchQuery.toLowerCase()));
+    return matchesCategory && matchesSearch;
+  });
+
   const cartItemsCount = cart.reduce((acc, item) => acc + item.quantity, 0);
   const cartTotal = cart.reduce((acc, item) => acc + (item.price * item.quantity), 0);
+  const wishlistCount = wishlist.length;
 
   if (error) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="text-center">
+      <div className="min-h-screen bg-[#09090b] text-white flex items-center justify-center p-4">
+        <div className="text-center bg-[#141418] border border-[#272734] p-8 rounded-xl max-w-md w-full shadow-2xl">
+          <div className="text-4xl mb-4">⚠️</div>
           <h1 className="text-2xl font-bold tracking-tight mb-2">404 - Store Not Found</h1>
-          <p className="text-muted text-sm">{error}</p>
+          <p className="text-[#a1a1aa] text-sm mb-6">{error}</p>
+          <a href="/" className="inline-block px-5 py-2.5 bg-[#db4444] text-white rounded-lg font-medium text-xs uppercase tracking-wider">
+            Back to Platform
+          </a>
         </div>
       </div>
     );
@@ -132,167 +237,464 @@ export default function StorefrontPage({ params }) {
 
   const getStoreDisplayName = () => {
     if (!storeData) return tenant;
-    if (typeof storeData.store === 'object' && storeData.store?.name) return storeData.store.name;
-    if (typeof storeData.store === 'string') return storeData.store;
+    if (typeof storeData === 'object' && storeData?.name) return storeData.name;
     return tenant;
   };
 
   return (
-    <div className="min-h-screen bg-background text-foreground">
-      <div className="max-w-6xl mx-auto px-6 py-8">
-        
-        <header className="flex items-center justify-between border-b border-border pb-6 mb-8">
-          <h1 className="text-xl font-bold tracking-tight capitalize">
-            {loading ? <div className="skeleton h-6 w-48 rounded"></div> : getStoreDisplayName()}
-          </h1>
-          <button 
-            onClick={() => setIsCartOpen(true)}
-            className="relative p-2 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-lg transition-colors"
-          >
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <circle cx="9" cy="21" r="1"></circle>
-              <circle cx="20" cy="21" r="1"></circle>
-              <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"></path>
-            </svg>
-            {cartItemsCount > 0 && (
-              <span className="absolute top-0 right-0 -mt-1 -mr-1 flex h-4 w-4 items-center justify-center rounded-full bg-accent text-[10px] font-bold text-background">
-                {cartItemsCount}
-              </span>
-            )}
-          </button>
-        </header>
-
-        {loading ? (
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
-            {[...Array(6)].map((_, i) => (
-              <div key={i} className="border border-border rounded-lg overflow-hidden bg-white dark:bg-zinc-900">
-                <div className="aspect-square skeleton"></div>
-                <div className="p-4 space-y-3">
-                  <div className="skeleton h-4 w-3/4 rounded"></div>
-                  <div className="skeleton h-4 w-1/4 rounded"></div>
-                  <div className="skeleton h-8 w-full rounded mt-4"></div>
-                </div>
-              </div>
-            ))}
-          </div>
-        ) : products.length === 0 ? (
-          <div className="text-center py-24">
-            <svg className="mx-auto h-12 w-12 text-zinc-300 dark:text-zinc-700 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
-            </svg>
-            <h3 className="text-lg font-medium text-foreground">No products yet</h3>
-            <p className="mt-1 text-sm text-muted">Check back later for new arrivals.</p>
-          </div>
-        ) : (
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
-            {products.map(product => (
-              <div key={product.id} className="group border border-border rounded-lg overflow-hidden bg-white dark:bg-zinc-900 hover:border-zinc-400 dark:hover:border-zinc-600 transition-colors flex flex-col">
-                <div className="aspect-square overflow-hidden relative border-b border-border">
-                  {product.image_url ? (
-                    <img 
-                      src={product.image_url} 
-                      alt={product.title} 
-                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                    />
-                  ) : (
-                    <div className="w-full h-full bg-gradient-to-br from-zinc-100 to-zinc-200 dark:from-zinc-800 dark:to-zinc-700 flex items-center justify-center group-hover:scale-105 transition-transform duration-300">
-                      <svg className="w-10 h-10 text-zinc-300 dark:text-zinc-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
-                      </svg>
-                    </div>
-                  )}
-                </div>
-                <div className="p-4 flex flex-col flex-1">
-                  <h3 className="text-sm font-medium text-foreground truncate">{product.title}</h3>
-                  <div className="flex items-center justify-between mt-1 mb-4">
-                    <span className="text-sm font-mono font-semibold text-foreground">${Number(product.price).toFixed(2)}</span>
-                    {product.stock > 0 ? (
-                      <span className="text-xs text-muted">{product.stock} in stock</span>
-                    ) : (
-                      <span className="text-xs text-red-500 font-medium bg-red-50 dark:bg-red-950/30 px-2 py-0.5 rounded">Out of stock</span>
-                    )}
-                  </div>
-                  
-                  <div className="mt-auto">
-                    {product.stock > 0 ? (
-                      <button 
-                        onClick={() => addToCart(product)}
-                        className="w-full py-2 text-xs font-medium uppercase tracking-wider bg-accent text-background hover:opacity-90 active:scale-[0.98] transition-all rounded"
-                      >
-                        Add to Cart
-                      </button>
-                    ) : (
-                      <button 
-                        disabled
-                        className="w-full py-2 text-xs font-medium uppercase tracking-wider bg-accent text-background opacity-40 cursor-not-allowed rounded"
-                      >
-                        Out of Stock
-                      </button>
-                    )}
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
+    <div className="min-h-screen bg-[#09090b] text-[#fafafa] flex flex-col font-sans selection:bg-[#db4444] selection:text-white">
+      
+      {/* Top Banner Announcement Bar */}
+      <div className="bg-[#141418] border-b border-[#272734] text-xs py-2 px-4 text-center text-[#a1a1aa] flex items-center justify-center gap-2">
+        <span>Summer Sale For All Products And Free Express Delivery - OFF 50%!</span>
+        <a href="#flash-sales" className="font-semibold text-white underline hover:text-[#db4444] transition-colors">Shop Now</a>
       </div>
 
-      {isCartOpen && (
-        <>
-          <div 
-            className="fixed inset-0 bg-black/40 z-40"
-            onClick={() => setIsCartOpen(false)}
-          ></div>
-          <div className="fixed inset-y-0 right-0 w-full max-w-md bg-white dark:bg-zinc-900 border-l border-border shadow-2xl z-50 flex flex-col">
-            <div className="p-6 border-b border-border flex items-center justify-between">
-              <div>
-                <h2 className="text-lg font-bold tracking-tight capitalize">{getStoreDisplayName()}</h2>
-                <p className="text-xs text-muted">{cartItemsCount} items</p>
-              </div>
-              <button 
-                onClick={() => setIsCartOpen(false)}
-                className="p-2 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-lg transition-colors"
+      {/* Main Store Header */}
+      <header className="sticky top-0 z-30 bg-[#09090b]/90 backdrop-blur-md border-b border-[#272734]">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-4">
+          
+          {/* Brand Logo & Name */}
+          <div className="flex items-center gap-3">
+            <button 
+              onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)} 
+              className="md:hidden p-2 text-[#a1a1aa] hover:text-white"
+            >
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
+            </button>
+            <a href={`/${tenant}`} className="text-xl font-bold tracking-tight capitalize flex items-center gap-2">
+              <span className="w-7 h-7 rounded-lg bg-[#db4444] text-white text-xs font-black flex items-center justify-center">
+                {getStoreDisplayName().charAt(0)}
+              </span>
+              <span>{loading ? '...' : getStoreDisplayName()}</span>
+            </a>
+          </div>
+
+          {/* Search Bar */}
+          <div className="hidden sm:flex flex-1 max-w-xs relative">
+            <input 
+              type="text" 
+              placeholder="What are you looking for?"
+              value={searchQuery}
+              onChange={e => setSearchQuery(e.target.value)}
+              className="w-full bg-[#141418] border border-[#272734] rounded-lg pl-3.5 pr-9 py-1.5 text-xs text-white placeholder-[#a1a1aa] outline-none focus:border-[#db4444] transition-colors"
+            />
+            <svg className="w-4 h-4 absolute right-3 top-2.5 text-[#a1a1aa]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+          </div>
+
+          {/* Nav Icons: Wishlist, Cart & Admin Link */}
+          <div className="flex items-center gap-3 sm:gap-4">
+            
+            {/* Wishlist Button */}
+            <button 
+              onClick={() => setIsWishlistOpen(true)}
+              className="relative p-2 text-[#a1a1aa] hover:text-white hover:bg-[#141418] rounded-lg transition-colors"
+              title="Wishlist"
+            >
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
+              {wishlistCount > 0 && (
+                <span className="absolute top-1 right-1 flex h-4 w-4 items-center justify-center rounded-full bg-[#db4444] text-[10px] font-bold text-white">
+                  {wishlistCount}
+                </span>
+              )}
+            </button>
+
+            {/* Cart Button */}
+            <button 
+              onClick={() => setIsCartOpen(true)}
+              className="relative p-2 text-[#a1a1aa] hover:text-white hover:bg-[#141418] rounded-lg transition-colors"
+              title="Shopping Cart"
+            >
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg>
+              {cartItemsCount > 0 && (
+                <span className="absolute top-1 right-1 flex h-4 w-4 items-center justify-center rounded-full bg-[#db4444] text-[10px] font-bold text-white">
+                  {cartItemsCount}
+                </span>
+              )}
+            </button>
+
+            {/* Admin Portal Shortcut */}
+            <a 
+              href={`/${tenant}/admin`}
+              className="hidden sm:inline-flex text-xs font-semibold px-3 py-1.5 border border-[#272734] rounded-lg hover:border-[#db4444] text-[#a1a1aa] hover:text-white transition-colors"
+            >
+              Merchant Admin
+            </a>
+          </div>
+        </div>
+
+        {/* Mobile Search Bar */}
+        <div className="sm:hidden px-4 pb-3">
+          <input 
+            type="text" 
+            placeholder="Search store products..."
+            value={searchQuery}
+            onChange={e => setSearchQuery(e.target.value)}
+            className="w-full bg-[#141418] border border-[#272734] rounded-lg px-3.5 py-2 text-xs text-white placeholder-[#a1a1aa] outline-none focus:border-[#db4444]"
+          />
+        </div>
+      </header>
+
+      {/* Main Content Area */}
+      <main className="flex-1 max-w-6xl mx-auto px-4 sm:px-6 py-6 w-full space-y-12">
+        
+        {/* HERO BANNER SECTION (Figma Style) */}
+        <section className="relative rounded-2xl overflow-hidden bg-gradient-to-r from-[#141418] via-[#1c1c28] to-[#09090b] border border-[#272734] p-6 sm:p-12 flex flex-col md:flex-row items-center justify-between gap-8">
+          <div className="max-w-md space-y-4 text-center md:text-left z-10">
+            <div className="flex items-center justify-center md:justify-start gap-2 text-[#a1a1aa] text-xs uppercase font-mono tracking-widest">
+              <span className="text-[#db4444] font-bold">●</span> iPhone 14 Series / Tech Collection
+            </div>
+            <h2 className="text-3xl sm:text-5xl font-extrabold tracking-tight text-white leading-tight">
+              Up to 10% off<br />Voucher Coupon
+            </h2>
+            <p className="text-xs sm:text-sm text-[#a1a1aa]">
+              Discover premium gadgets, fashion, and lifestyle items curated specifically for your store.
+            </p>
+            <div className="pt-2">
+              <a 
+                href="#products-grid" 
+                className="press inline-flex items-center gap-2 px-6 py-3 bg-[#db4444] hover:bg-[#e53838] text-white text-xs font-bold uppercase tracking-wider rounded-lg shadow-lg shadow-[#db4444]/25 transition-all"
               >
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <line x1="18" y1="6" x2="6" y2="18"></line>
-                  <line x1="6" y1="6" x2="18" y2="18"></line>
-                </svg>
-              </button>
+                Shop Now →
+              </a>
+            </div>
+          </div>
+
+          {/* Hero Decorative Visual */}
+          <div className="relative w-full max-w-xs aspect-square flex items-center justify-center">
+            <div className="absolute inset-0 bg-[#db4444]/20 rounded-full blur-3xl"></div>
+            <div className="relative w-48 h-48 sm:w-64 sm:h-64 rounded-2xl bg-[#181824] border border-[#272734] p-4 flex flex-col items-center justify-center text-center shadow-2xl">
+              <div className="text-5xl mb-2">⚡</div>
+              <span className="text-sm font-mono font-bold text-white">Exclusive Deals</span>
+              <span className="text-xs text-[#a1a1aa] mt-1">Available in Naira (₦)</span>
+              <div className="mt-3 px-3 py-1 bg-[#db4444]/20 text-[#db4444] text-[10px] font-bold rounded-full border border-[#db4444]/30">
+                Save Big Today
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* FLASH SALES SECTION (Figma Style with Live Countdown Timer) */}
+        <section id="flash-sales" className="space-y-6 pt-4">
+          <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 border-b border-[#272734] pb-4">
+            
+            {/* Header Title with Red Bar */}
+            <div className="space-y-1">
+              <div className="flex items-center gap-2 text-xs font-bold uppercase text-[#db4444]">
+                <span className="w-3 h-7 bg-[#db4444] rounded-sm inline-block"></span>
+                <span>Today's</span>
+              </div>
+              <h2 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-white">Flash Sales</h2>
             </div>
 
-            <div className="flex-1 overflow-y-auto p-6 space-y-6">
-              {cart.length === 0 ? (
-                <div className="text-center py-12 text-muted">
-                  Your cart is empty
-                </div>
-              ) : (
-                cart.map(item => (
-                  <div key={item.product_id} className="flex items-start justify-between gap-4">
-                    <div className="flex-1">
-                      <h4 className="text-sm font-medium">{item.title}</h4>
-                      <div className="text-xs text-muted font-mono mt-1">${Number(item.price).toFixed(2)}</div>
-                      <div className="flex items-center gap-3 mt-3">
-                        <div className="flex items-center border border-border rounded">
-                          <button 
-                            onClick={() => updateQuantity(item.product_id, -1)}
-                            className="px-2 py-1 text-muted hover:text-foreground transition-colors"
-                          >-</button>
-                          <span className="text-xs font-mono w-6 text-center">{item.quantity}</span>
-                          <button 
-                            onClick={() => updateQuantity(item.product_id, 1)}
-                            className="px-2 py-1 text-muted hover:text-foreground transition-colors"
-                          >+</button>
+            {/* Countdown Clock Display */}
+            <div className="flex items-center gap-2 text-center font-mono">
+              <div className="bg-[#141418] border border-[#272734] rounded-lg px-3 py-1.5 min-w-[50px]">
+                <span className="text-xs text-[#a1a1aa] block uppercase text-[9px]">Days</span>
+                <span className="text-base font-bold text-white">{String(timeLeft.days).padStart(2, '0')}</span>
+              </div>
+              <span className="text-[#db4444] font-bold">:</span>
+              <div className="bg-[#141418] border border-[#272734] rounded-lg px-3 py-1.5 min-w-[50px]">
+                <span className="text-xs text-[#a1a1aa] block uppercase text-[9px]">Hours</span>
+                <span className="text-base font-bold text-white">{String(timeLeft.hours).padStart(2, '0')}</span>
+              </div>
+              <span className="text-[#db4444] font-bold">:</span>
+              <div className="bg-[#141418] border border-[#272734] rounded-lg px-3 py-1.5 min-w-[50px]">
+                <span className="text-xs text-[#a1a1aa] block uppercase text-[9px]">Mins</span>
+                <span className="text-base font-bold text-white">{String(timeLeft.minutes).padStart(2, '0')}</span>
+              </div>
+              <span className="text-[#db4444] font-bold">:</span>
+              <div className="bg-[#141418] border border-[#272734] rounded-lg px-3 py-1.5 min-w-[50px]">
+                <span className="text-xs text-[#a1a1aa] block uppercase text-[9px]">Secs</span>
+                <span className="text-base font-bold text-white text-[#db4444]">{String(timeLeft.seconds).padStart(2, '0')}</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Flash Sales Product Carousel / Grid */}
+          {loading ? (
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+              {[...Array(4)].map((_, i) => (
+                <div key={i} className="skeleton h-64 rounded-xl border border-[#272734]"></div>
+              ))}
+            </div>
+          ) : (
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6">
+              {filteredProducts.slice(0, 4).map(product => {
+                const isWishlisted = wishlist.includes(product.id);
+                const originalPrice = product.original_price || (Number(product.price) * 1.25);
+                const discountPercent = Math.round(((originalPrice - product.price) / originalPrice) * 100);
+
+                return (
+                  <div key={product.id} className="group relative bg-[#141418] border border-[#272734] rounded-xl overflow-hidden hover:border-[#db4444]/60 transition-all duration-300 flex flex-col">
+                    
+                    {/* Discount Badge */}
+                    <div className="absolute top-3 left-3 z-10 bg-[#db4444] text-white text-[10px] font-bold px-2 py-0.5 rounded">
+                      -{discountPercent > 0 ? discountPercent : 20}%
+                    </div>
+
+                    {/* Wishlist Toggle Heart */}
+                    <button 
+                      onClick={() => toggleWishlist(product.id)}
+                      className={`absolute top-3 right-3 z-10 p-1.5 rounded-full border transition-all ${
+                        isWishlisted 
+                          ? 'bg-[#db4444] border-[#db4444] text-white animate-heart' 
+                          : 'bg-[#09090b]/60 border-[#272734] text-[#a1a1aa] hover:text-white'
+                      }`}
+                    >
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill={isWishlisted ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="2">
+                        <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
+                      </svg>
+                    </button>
+
+                    {/* Product Image Area */}
+                    <div className="aspect-square relative overflow-hidden bg-[#181824] p-4 flex items-center justify-center">
+                      {product.image_url ? (
+                        <img 
+                          src={product.image_url} 
+                          alt={product.title} 
+                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                        />
+                      ) : (
+                        <div className="w-full h-full bg-[#1c1c28] flex flex-col items-center justify-center text-center p-4">
+                          <span className="text-3xl mb-1">📦</span>
+                          <span className="text-[10px] text-[#a1a1aa] font-mono">{product.category || 'Item'}</span>
                         </div>
+                      )}
+
+                      {/* Hover Overlay "Add to Cart" Button */}
+                      <div className="absolute inset-x-0 bottom-0 p-2 bg-gradient-to-t from-black/80 to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                         <button 
-                          onClick={() => removeFromCart(item.product_id)}
-                          className="text-xs text-red-500 hover:text-red-600 transition-colors"
+                          onClick={() => addToCart(product)}
+                          disabled={product.stock === 0}
+                          className="w-full py-2 bg-[#db4444] hover:bg-[#e53838] text-white text-xs font-bold uppercase tracking-wider rounded shadow-md transition-colors disabled:opacity-50"
                         >
-                          Remove
+                          {product.stock > 0 ? 'Add To Cart' : 'Out of Stock'}
                         </button>
                       </div>
                     </div>
-                    <div className="font-mono text-sm font-semibold">
-                      ${(item.price * item.quantity).toFixed(2)}
+
+                    {/* Product Info */}
+                    <div className="p-4 flex flex-col flex-1">
+                      <h3 className="text-xs sm:text-sm font-semibold text-white truncate mb-1">{product.title}</h3>
+                      
+                      {/* Price in Naira (₦) */}
+                      <div className="flex items-center gap-2 mb-2 font-mono text-xs sm:text-sm">
+                        <span className="text-[#db4444] font-bold">{formatNaira(product.price)}</span>
+                        <span className="text-[#a1a1aa] line-through text-[11px]">{formatNaira(originalPrice)}</span>
+                      </div>
+
+                      {/* Rating Stars & Count */}
+                      <div className="flex items-center gap-1.5 mt-auto text-[11px] text-[#a1a1aa]">
+                        <div className="flex text-amber-400">★★★★☆</div>
+                        <span>({product.review_count || 48})</span>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </section>
+
+        {/* BROWSE BY CATEGORY SECTION (Figma Style) */}
+        <section className="space-y-6 pt-4 border-t border-[#272734]">
+          <div className="space-y-1">
+            <div className="flex items-center gap-2 text-xs font-bold uppercase text-[#db4444]">
+              <span className="w-3 h-7 bg-[#db4444] rounded-sm inline-block"></span>
+              <span>Categories</span>
+            </div>
+            <h2 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-white">Browse By Category</h2>
+          </div>
+
+          {/* Category Pills Bar */}
+          <div className="flex items-center gap-3 overflow-x-auto no-scrollbar pb-2">
+            <button
+              onClick={() => setSelectedCategory('All')}
+              className={`flex items-center gap-2 px-5 py-3 rounded-xl border text-xs font-semibold uppercase tracking-wider whitespace-nowrap transition-all ${
+                selectedCategory === 'All'
+                  ? 'bg-[#db4444] border-[#db4444] text-white shadow-lg shadow-[#db4444]/20'
+                  : 'bg-[#141418] border-[#272734] text-[#a1a1aa] hover:text-white hover:border-[#db4444]/40'
+              }`}
+            >
+              <span>🛍️</span>
+              <span>All Products</span>
+            </button>
+
+            {categories.map(cat => (
+              <button
+                key={cat.id}
+                onClick={() => setSelectedCategory(cat.name)}
+                className={`flex items-center gap-2 px-5 py-3 rounded-xl border text-xs font-semibold uppercase tracking-wider whitespace-nowrap transition-all ${
+                  selectedCategory.toLowerCase() === cat.name.toLowerCase()
+                    ? 'bg-[#db4444] border-[#db4444] text-white shadow-lg shadow-[#db4444]/20'
+                    : 'bg-[#141418] border-[#272734] text-[#a1a1aa] hover:text-white hover:border-[#db4444]/40'
+                }`}
+              >
+                <span>{cat.icon || '📦'}</span>
+                <span>{cat.name}</span>
+              </button>
+            ))}
+          </div>
+        </section>
+
+        {/* EXPLORE OUR PRODUCTS GRID */}
+        <section id="products-grid" className="space-y-6 pt-4 border-t border-[#272734]">
+          <div className="space-y-1">
+            <div className="flex items-center gap-2 text-xs font-bold uppercase text-[#db4444]">
+              <span className="w-3 h-7 bg-[#db4444] rounded-sm inline-block"></span>
+              <span>Our Products</span>
+            </div>
+            <h2 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-white">Explore Our Products</h2>
+          </div>
+
+          {filteredProducts.length === 0 ? (
+            <div className="text-center py-16 bg-[#141418] border border-[#272734] rounded-xl">
+              <div className="text-4xl mb-2">🔍</div>
+              <h3 className="text-sm font-semibold text-white">No products found</h3>
+              <p className="text-xs text-[#a1a1aa] mt-1">Try selecting another category or clear your search query.</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6">
+              {filteredProducts.map(product => {
+                const isWishlisted = wishlist.includes(product.id);
+                return (
+                  <div key={product.id} className="group relative bg-[#141418] border border-[#272734] rounded-xl overflow-hidden hover:border-[#db4444]/60 transition-all duration-300 flex flex-col">
+                    
+                    {/* Wishlist Toggle Heart */}
+                    <button 
+                      onClick={() => toggleWishlist(product.id)}
+                      className={`absolute top-3 right-3 z-10 p-1.5 rounded-full border transition-all ${
+                        isWishlisted 
+                          ? 'bg-[#db4444] border-[#db4444] text-white animate-heart' 
+                          : 'bg-[#09090b]/60 border-[#272734] text-[#a1a1aa] hover:text-white'
+                      }`}
+                    >
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill={isWishlisted ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="2">
+                        <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
+                      </svg>
+                    </button>
+
+                    {/* Image Area */}
+                    <div className="aspect-square relative overflow-hidden bg-[#181824] p-4 flex items-center justify-center">
+                      {product.image_url ? (
+                        <img 
+                          src={product.image_url} 
+                          alt={product.title} 
+                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                        />
+                      ) : (
+                        <div className="w-full h-full bg-[#1c1c28] flex flex-col items-center justify-center text-center p-4">
+                          <span className="text-3xl mb-1">📦</span>
+                          <span className="text-[10px] text-[#a1a1aa] font-mono">{product.category || 'General'}</span>
+                        </div>
+                      )}
+
+                      {/* Add To Cart Hover Button */}
+                      <div className="absolute inset-x-0 bottom-0 p-2 bg-gradient-to-t from-black/80 to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                        <button 
+                          onClick={() => addToCart(product)}
+                          disabled={product.stock === 0}
+                          className="w-full py-2 bg-[#db4444] hover:bg-[#e53838] text-white text-xs font-bold uppercase tracking-wider rounded shadow-md transition-colors disabled:opacity-50"
+                        >
+                          {product.stock > 0 ? 'Add To Cart' : 'Out of Stock'}
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Details */}
+                    <div className="p-4 flex flex-col flex-1">
+                      <h3 className="text-xs sm:text-sm font-semibold text-white truncate mb-1">{product.title}</h3>
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-xs sm:text-sm font-bold font-mono text-[#db4444]">{formatNaira(product.price)}</span>
+                        <span className="text-[10px] text-[#a1a1aa] font-mono">{product.stock > 0 ? `${product.stock} left` : 'Sold out'}</span>
+                      </div>
+                      <div className="flex items-center gap-1.5 mt-auto text-[11px] text-[#a1a1aa]">
+                        <div className="flex text-amber-400">★★★★☆</div>
+                        <span>(35)</span>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </section>
+
+        {/* TRUST BADGES SECTION (Figma Style) */}
+        <section className="grid grid-cols-1 md:grid-cols-3 gap-6 pt-6 border-t border-[#272734] text-center">
+          <div className="p-6 bg-[#141418] border border-[#272734] rounded-xl flex flex-col items-center">
+            <div className="w-12 h-12 rounded-full bg-[#181824] border border-[#272734] flex items-center justify-center text-2xl mb-3 text-[#db4444]">
+              🚚
+            </div>
+            <h4 className="text-sm font-bold text-white uppercase tracking-wider mb-1">FREE AND FAST DELIVERY</h4>
+            <p className="text-xs text-[#a1a1aa]">Free delivery for all orders over ₦50,000</p>
+          </div>
+
+          <div className="p-6 bg-[#141418] border border-[#272734] rounded-xl flex flex-col items-center">
+            <div className="w-12 h-12 rounded-full bg-[#181824] border border-[#272734] flex items-center justify-center text-2xl mb-3 text-[#db4444]">
+              🎧
+            </div>
+            <h4 className="text-sm font-bold text-white uppercase tracking-wider mb-1">24/7 CUSTOMER SERVICE</h4>
+            <p className="text-xs text-[#a1a1aa]">Friendly 24/7 customer support</p>
+          </div>
+
+          <div className="p-6 bg-[#141418] border border-[#272734] rounded-xl flex flex-col items-center">
+            <div className="w-12 h-12 rounded-full bg-[#181824] border border-[#272734] flex items-center justify-center text-2xl mb-3 text-[#db4444]">
+              🛡️
+            </div>
+            <h4 className="text-sm font-bold text-white uppercase tracking-wider mb-1">MONEY BACK GUARANTEE</h4>
+            <p className="text-xs text-[#a1a1aa]">We return money within 30 days</p>
+          </div>
+        </section>
+
+      </main>
+
+      {/* CART DRAWER */}
+      {isCartOpen && (
+        <div className="fixed inset-0 z-50 flex justify-end">
+          <div className="fixed inset-0 bg-black/70 backdrop-blur-sm" onClick={() => setIsCartOpen(false)}></div>
+          
+          <div className="relative w-full max-w-md bg-[#141418] border-l border-[#272734] h-full flex flex-col z-10 shadow-2xl animate-in slide-in-from-right duration-300">
+            <div className="p-5 border-b border-[#272734] flex items-center justify-between">
+              <div>
+                <h3 className="text-base font-bold text-white capitalize">{getStoreDisplayName()} Cart</h3>
+                <p className="text-xs text-[#a1a1aa] font-mono">{cartItemsCount} item(s)</p>
+              </div>
+              <button onClick={() => setIsCartOpen(false)} className="p-2 text-[#a1a1aa] hover:text-white">✕</button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto p-5 space-y-4">
+              {cart.length === 0 ? (
+                <div className="text-center py-12 text-[#a1a1aa]">
+                  <div className="text-4xl mb-2">🛒</div>
+                  <p className="text-sm font-semibold text-white">Your cart is empty</p>
+                </div>
+              ) : (
+                cart.map(item => (
+                  <div key={item.product_id} className="flex items-center justify-between gap-3 p-3 bg-[#181824] border border-[#272734] rounded-xl">
+                    <div className="w-12 h-12 rounded-lg bg-[#09090b] overflow-hidden border border-[#272734] flex items-center justify-center">
+                      {item.image_url ? (
+                        <img src={item.image_url} alt={item.title} className="w-full h-full object-cover" />
+                      ) : (
+                        <span className="text-xs">📦</span>
+                      )}
+                    </div>
+                    
+                    <div className="flex-1 min-w-0">
+                      <h4 className="text-xs font-semibold text-white truncate">{item.title}</h4>
+                      <span className="text-xs font-mono text-[#db4444]">{formatNaira(item.price)}</span>
+                      
+                      <div className="flex items-center gap-2 mt-2">
+                        <button onClick={() => updateQuantity(item.product_id, -1)} className="px-2 py-0.5 bg-[#272734] rounded text-xs">-</button>
+                        <span className="text-xs font-mono">{item.quantity}</span>
+                        <button onClick={() => updateQuantity(item.product_id, 1)} className="px-2 py-0.5 bg-[#272734] rounded text-xs">+</button>
+                        <button onClick={() => removeFromCart(item.product_id)} className="text-[10px] text-red-400 ml-2">Remove</button>
+                      </div>
+                    </div>
+
+                    <div className="text-xs font-mono font-bold text-white">
+                      {formatNaira(item.price * item.quantity)}
                     </div>
                   </div>
                 ))
@@ -300,34 +702,138 @@ export default function StorefrontPage({ params }) {
             </div>
 
             {cart.length > 0 && (
-              <div className="p-6 border-t border-border bg-zinc-50 dark:bg-zinc-950">
-                <div className="flex items-center justify-between mb-4">
-                  <span className="text-sm font-medium">Subtotal</span>
-                  <span className="font-mono font-bold">${cartTotal.toFixed(2)}</span>
+              <div className="p-5 border-t border-[#272734] bg-[#09090b] space-y-3">
+                <div className="flex justify-between text-sm font-semibold">
+                  <span className="text-[#a1a1aa]">Total (NGN)</span>
+                  <span className="font-mono text-[#db4444] text-base font-extrabold">{formatNaira(cartTotal)}</span>
                 </div>
+                
                 <button 
-                  onClick={placeOrder}
-                  className="w-full py-3 text-sm font-medium uppercase tracking-wider bg-accent text-background hover:opacity-90 active:scale-[0.98] transition-all rounded-lg"
+                  onClick={initiatePayment}
+                  disabled={paymentLoading}
+                  className="press w-full py-3 bg-[#db4444] hover:bg-[#e53838] text-white font-bold text-xs uppercase tracking-wider rounded-lg shadow-lg shadow-[#db4444]/30 transition-all flex items-center justify-center"
                 >
-                  Place Order
+                  {paymentLoading ? (
+                    <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                  ) : (
+                    'Proceed to Payment (Stripe NGN ₦)'
+                  )}
                 </button>
               </div>
             )}
           </div>
-        </>
+        </div>
       )}
 
+      {/* WISHLIST DRAWER */}
+      {isWishlistOpen && (
+        <div className="fixed inset-0 z-50 flex justify-end">
+          <div className="fixed inset-0 bg-black/70 backdrop-blur-sm" onClick={() => setIsWishlistOpen(false)}></div>
+          
+          <div className="relative w-full max-w-md bg-[#141418] border-l border-[#272734] h-full flex flex-col z-10 shadow-2xl animate-in slide-in-from-right duration-300">
+            <div className="p-5 border-b border-[#272734] flex items-center justify-between">
+              <div>
+                <h3 className="text-base font-bold text-white">Your Wishlist</h3>
+                <p className="text-xs text-[#a1a1aa] font-mono">{wishlistCount} item(s) saved</p>
+              </div>
+              <button onClick={() => setIsWishlistOpen(false)} className="p-2 text-[#a1a1aa] hover:text-white">✕</button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto p-5 space-y-4">
+              {wishlist.length === 0 ? (
+                <div className="text-center py-12 text-[#a1a1aa]">
+                  <div className="text-4xl mb-2">❤️</div>
+                  <p className="text-sm font-semibold text-white">No items in your wishlist</p>
+                </div>
+              ) : (
+                products.filter(p => wishlist.includes(p.id)).map(product => (
+                  <div key={product.id} className="flex items-center justify-between gap-3 p-3 bg-[#181824] border border-[#272734] rounded-xl">
+                    <div className="w-12 h-12 rounded-lg bg-[#09090b] overflow-hidden border border-[#272734] flex items-center justify-center">
+                      {product.image_url ? (
+                        <img src={product.image_url} alt={product.title} className="w-full h-full object-cover" />
+                      ) : (
+                        <span className="text-xs">📦</span>
+                      )}
+                    </div>
+                    
+                    <div className="flex-1 min-w-0">
+                      <h4 className="text-xs font-semibold text-white truncate">{product.title}</h4>
+                      <span className="text-xs font-mono text-[#db4444]">{formatNaira(product.price)}</span>
+                    </div>
+
+                    <button 
+                      onClick={() => { addToCart(product); toggleWishlist(product.id); }}
+                      className="px-3 py-1.5 bg-[#db4444] text-white text-[10px] font-bold uppercase rounded"
+                    >
+                      Add To Cart
+                    </button>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* STRIPE PAYMENT CONFIRMATION MODAL (DEMO / SCAFFOLDING MODE) */}
+      {isPaymentModalOpen && paymentSuccess && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="fixed inset-0 bg-black/80 backdrop-blur-md" onClick={() => setIsPaymentModalOpen(false)}></div>
+          
+          <div className="relative bg-[#141418] border border-[#272734] rounded-2xl p-6 sm:p-8 max-w-md w-full z-10 text-center shadow-2xl space-y-4 animate-in zoom-in-95 duration-200">
+            <div className="w-16 h-16 bg-[#22c55e]/10 text-[#22c55e] border border-[#22c55e]/30 rounded-full flex items-center justify-center text-3xl mx-auto">
+              ✓
+            </div>
+            
+            <h3 className="text-xl font-extrabold text-white">Payment Checkout Scaffolding Active</h3>
+            
+            <div className="p-4 bg-[#09090b] border border-[#272734] rounded-xl text-left space-y-2 font-mono text-xs">
+              <div className="flex justify-between">
+                <span className="text-[#a1a1aa]">Order ID:</span>
+                <span className="text-white font-bold">{paymentSuccess.orderId?.substring(0, 8)}...</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-[#a1a1aa]">Total Paid:</span>
+                <span className="text-[#db4444] font-bold">{formatNaira(paymentSuccess.totalAmount)}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-[#a1a1aa]">Gateway:</span>
+                <span className="text-emerald-400">Stripe NGN (Test Mode)</span>
+              </div>
+            </div>
+
+            <p className="text-xs text-[#a1a1aa] leading-relaxed">
+              {paymentSuccess.message}
+            </p>
+
+            <button 
+              onClick={() => setIsPaymentModalOpen(false)}
+              className="press w-full py-3 bg-[#db4444] text-white font-bold text-xs uppercase tracking-wider rounded-lg shadow-lg"
+            >
+              Done / Return to Store
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Toast Notifications */}
       <div className="fixed bottom-6 right-6 z-50 flex flex-col gap-2 pointer-events-none">
         {toasts.map(toast => (
           <div 
             key={toast.id}
-            className={`bg-white dark:bg-zinc-900 border border-border rounded-lg p-4 shadow-lg flex items-center justify-between min-w-[300px] pointer-events-auto border-l-4 ${toast.type === 'error' ? 'border-l-red-500' : 'border-l-green-500'} animate-in slide-in-from-bottom-5 fade-in duration-300`}
+            className={`px-4 py-3 bg-[#141418] border text-xs font-semibold rounded-lg shadow-2xl pointer-events-auto border-l-4 ${
+              toast.type === 'error' ? 'border-l-red-500 text-red-400 border-[#272734]' : 'border-l-[#db4444] text-white border-[#272734]'
+            } animate-in slide-in-from-bottom-5 duration-300`}
           >
-            <p className="text-sm font-medium">{toast.message}</p>
+            {toast.message}
           </div>
         ))}
       </div>
 
+      {/* Footer */}
+      <footer className="mt-16 py-8 border-t border-[#272734] bg-[#09090b] text-center text-xs font-mono text-[#a1a1aa]">
+        &copy; {new Date().getFullYear()} {getStoreDisplayName()}. Powered by Mercato Commerce Engine.
+      </footer>
     </div>
   );
 }
