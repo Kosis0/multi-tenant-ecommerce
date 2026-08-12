@@ -160,7 +160,6 @@ export default function StorefrontPage({ params }) {
     setPaymentLoading(true);
 
     try {
-      // 1. Create order in backend database
       const orderRes = await fetch(`${API_URL}/api/orders?tenant=${tenant}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -175,7 +174,6 @@ export default function StorefrontPage({ params }) {
 
       const createdOrder = orderData.data;
 
-      // 2. Call Stripe Checkout Session API endpoint
       const checkoutRes = await fetch(`${API_URL}/api/checkout/create-session?tenant=${tenant}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -187,10 +185,8 @@ export default function StorefrontPage({ params }) {
       const checkoutData = await checkoutRes.json();
 
       if (checkoutData.success && checkoutData.data?.url) {
-        // Redirect to live Stripe Checkout page if STRIPE_SECRET_KEY is configured
         window.location.href = checkoutData.data.url;
       } else {
-        // Show Stripe Payment Gateway Scaffolding Modal (Demo Mode)
         setPaymentSuccess({
           orderId: createdOrder.id,
           totalAmount: createdOrder.total_amount,
@@ -206,6 +202,30 @@ export default function StorefrontPage({ params }) {
     } finally {
       setPaymentLoading(false);
     }
+  };
+
+  // Helper SVG Line Icon renderer for category names
+  const renderCategoryIcon = (name) => {
+    const n = (name || '').toLowerCase();
+    if (n.includes('phone')) {
+      return <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="5" y="2" width="14" height="20" rx="2" ry="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>;
+    }
+    if (n.includes('computer') || n.includes('laptop')) {
+      return <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>;
+    }
+    if (n.includes('watch')) {
+      return <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="7"/><polyline points="12 9 12 12 13.5 13.5"/><path d="M16.51 17.35l-.42 3.83A2 2 0 0 1 14.1 23H9.9a2 2 0 0 1-1.99-1.82l-.42-3.83"/><path d="M7.49 6.65l.42-3.83A2 2 0 0 1 9.9 1h4.2a2 2 0 0 1 1.99 1.82l.42 3.83"/></svg>;
+    }
+    if (n.includes('camera')) {
+      return <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>;
+    }
+    if (n.includes('headphone') || n.includes('audio')) {
+      return <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 18v-6a9 9 0 0 1 18 0v6"/><path d="M21 19a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3zM3 19a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3z"/></svg>;
+    }
+    if (n.includes('gaming') || n.includes('game')) {
+      return <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="6" y1="12" x2="10" y2="12"/><line x1="8" y1="10" x2="8" y2="14"/><circle cx="15" cy="13" r="1"/><circle cx="18" cy="11" r="1"/><rect x="2" y="6" width="20" height="12" rx="6"/></svg>;
+    }
+    return <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>;
   };
 
   // Filtered Products
@@ -224,7 +244,9 @@ export default function StorefrontPage({ params }) {
     return (
       <div className="min-h-screen bg-[#09090b] text-white flex items-center justify-center p-4">
         <div className="text-center bg-[#141418] border border-[#272734] p-8 rounded-xl max-w-md w-full shadow-2xl">
-          <div className="text-4xl mb-4">⚠️</div>
+          <div className="w-12 h-12 rounded-full bg-red-950/40 border border-red-900/60 text-red-400 flex items-center justify-center mx-auto mb-4">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+          </div>
           <h1 className="text-2xl font-bold tracking-tight mb-2">404 - Store Not Found</h1>
           <p className="text-[#a1a1aa] text-sm mb-6">{error}</p>
           <a href="/" className="inline-block px-5 py-2.5 bg-[#db4444] text-white rounded-lg font-medium text-xs uppercase tracking-wider">
@@ -364,7 +386,9 @@ export default function StorefrontPage({ params }) {
           <div className="relative w-full max-w-xs aspect-square flex items-center justify-center">
             <div className="absolute inset-0 bg-[#db4444]/20 rounded-full blur-3xl"></div>
             <div className="relative w-48 h-48 sm:w-64 sm:h-64 rounded-2xl bg-[#181824] border border-[#272734] p-4 flex flex-col items-center justify-center text-center shadow-2xl">
-              <div className="text-5xl mb-2">⚡</div>
+              <div className="w-12 h-12 rounded-xl bg-[#db4444]/20 border border-[#db4444]/30 text-[#db4444] flex items-center justify-center mb-3">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+              </div>
               <span className="text-sm font-mono font-bold text-white">Exclusive Deals</span>
               <span className="text-xs text-[#a1a1aa] mt-1">Available in Naira (₦)</span>
               <div className="mt-3 px-3 py-1 bg-[#db4444]/20 text-[#db4444] text-[10px] font-bold rounded-full border border-[#db4444]/30">
@@ -457,7 +481,7 @@ export default function StorefrontPage({ params }) {
                         />
                       ) : (
                         <div className="w-full h-full bg-[#1c1c28] flex flex-col items-center justify-center text-center p-4">
-                          <span className="text-3xl mb-1">📦</span>
+                          <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-[#a1a1aa] mb-1"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
                           <span className="text-[10px] text-[#a1a1aa] font-mono">{product.category || 'Item'}</span>
                         </div>
                       )}
@@ -517,7 +541,7 @@ export default function StorefrontPage({ params }) {
                   : 'bg-[#141418] border-[#272734] text-[#a1a1aa] hover:text-white hover:border-[#db4444]/40'
               }`}
             >
-              <span>🛍️</span>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
               <span>All Products</span>
             </button>
 
@@ -531,7 +555,7 @@ export default function StorefrontPage({ params }) {
                     : 'bg-[#141418] border-[#272734] text-[#a1a1aa] hover:text-white hover:border-[#db4444]/40'
                 }`}
               >
-                <span>{cat.icon || '📦'}</span>
+                {renderCategoryIcon(cat.name)}
                 <span>{cat.name}</span>
               </button>
             ))}
@@ -550,7 +574,9 @@ export default function StorefrontPage({ params }) {
 
           {filteredProducts.length === 0 ? (
             <div className="text-center py-16 bg-[#141418] border border-[#272734] rounded-xl">
-              <div className="text-4xl mb-2">🔍</div>
+              <div className="w-12 h-12 rounded-full bg-[#181824] text-[#a1a1aa] flex items-center justify-center mx-auto mb-2">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+              </div>
               <h3 className="text-sm font-semibold text-white">No products found</h3>
               <p className="text-xs text-[#a1a1aa] mt-1">Try selecting another category or clear your search query.</p>
             </div>
@@ -585,7 +611,7 @@ export default function StorefrontPage({ params }) {
                         />
                       ) : (
                         <div className="w-full h-full bg-[#1c1c28] flex flex-col items-center justify-center text-center p-4">
-                          <span className="text-3xl mb-1">📦</span>
+                          <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-[#a1a1aa] mb-1"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
                           <span className="text-[10px] text-[#a1a1aa] font-mono">{product.category || 'General'}</span>
                         </div>
                       )}
@@ -624,24 +650,24 @@ export default function StorefrontPage({ params }) {
         {/* TRUST BADGES SECTION (Figma Style) */}
         <section className="grid grid-cols-1 md:grid-cols-3 gap-6 pt-6 border-t border-[#272734] text-center">
           <div className="p-6 bg-[#141418] border border-[#272734] rounded-xl flex flex-col items-center">
-            <div className="w-12 h-12 rounded-full bg-[#181824] border border-[#272734] flex items-center justify-center text-2xl mb-3 text-[#db4444]">
-              🚚
+            <div className="w-12 h-12 rounded-full bg-[#181824] border border-[#272734] flex items-center justify-center mb-3 text-[#db4444]">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="1" y="3" width="15" height="13"/><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>
             </div>
             <h4 className="text-sm font-bold text-white uppercase tracking-wider mb-1">FREE AND FAST DELIVERY</h4>
             <p className="text-xs text-[#a1a1aa]">Free delivery for all orders over ₦50,000</p>
           </div>
 
           <div className="p-6 bg-[#141418] border border-[#272734] rounded-xl flex flex-col items-center">
-            <div className="w-12 h-12 rounded-full bg-[#181824] border border-[#272734] flex items-center justify-center text-2xl mb-3 text-[#db4444]">
-              🎧
+            <div className="w-12 h-12 rounded-full bg-[#181824] border border-[#272734] flex items-center justify-center mb-3 text-[#db4444]">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 18v-6a9 9 0 0 1 18 0v6"/><path d="M21 19a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3zM3 19a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3z"/></svg>
             </div>
             <h4 className="text-sm font-bold text-white uppercase tracking-wider mb-1">24/7 CUSTOMER SERVICE</h4>
             <p className="text-xs text-[#a1a1aa]">Friendly 24/7 customer support</p>
           </div>
 
           <div className="p-6 bg-[#141418] border border-[#272734] rounded-xl flex flex-col items-center">
-            <div className="w-12 h-12 rounded-full bg-[#181824] border border-[#272734] flex items-center justify-center text-2xl mb-3 text-[#db4444]">
-              🛡️
+            <div className="w-12 h-12 rounded-full bg-[#181824] border border-[#272734] flex items-center justify-center mb-3 text-[#db4444]">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><polyline points="9 12 11 14 15 10"/></svg>
             </div>
             <h4 className="text-sm font-bold text-white uppercase tracking-wider mb-1">MONEY BACK GUARANTEE</h4>
             <p className="text-xs text-[#a1a1aa]">We return money within 30 days</p>
@@ -667,7 +693,9 @@ export default function StorefrontPage({ params }) {
             <div className="flex-1 overflow-y-auto p-5 space-y-4">
               {cart.length === 0 ? (
                 <div className="text-center py-12 text-[#a1a1aa]">
-                  <div className="text-4xl mb-2">🛒</div>
+                  <div className="w-12 h-12 rounded-full bg-[#181824] text-[#a1a1aa] flex items-center justify-center mx-auto mb-2">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg>
+                  </div>
                   <p className="text-sm font-semibold text-white">Your cart is empty</p>
                 </div>
               ) : (
@@ -677,7 +705,7 @@ export default function StorefrontPage({ params }) {
                       {item.image_url ? (
                         <img src={item.image_url} alt={item.title} className="w-full h-full object-cover" />
                       ) : (
-                        <span className="text-xs">📦</span>
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-[#a1a1aa]"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>
                       )}
                     </div>
                     
@@ -742,7 +770,9 @@ export default function StorefrontPage({ params }) {
             <div className="flex-1 overflow-y-auto p-5 space-y-4">
               {wishlist.length === 0 ? (
                 <div className="text-center py-12 text-[#a1a1aa]">
-                  <div className="text-4xl mb-2">❤️</div>
+                  <div className="w-12 h-12 rounded-full bg-[#181824] text-[#a1a1aa] flex items-center justify-center mx-auto mb-2">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
+                  </div>
                   <p className="text-sm font-semibold text-white">No items in your wishlist</p>
                 </div>
               ) : (
@@ -752,7 +782,7 @@ export default function StorefrontPage({ params }) {
                       {product.image_url ? (
                         <img src={product.image_url} alt={product.title} className="w-full h-full object-cover" />
                       ) : (
-                        <span className="text-xs">📦</span>
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-[#a1a1aa]"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>
                       )}
                     </div>
                     
@@ -782,7 +812,7 @@ export default function StorefrontPage({ params }) {
           
           <div className="relative bg-[#141418] border border-[#272734] rounded-2xl p-6 sm:p-8 max-w-md w-full z-10 text-center shadow-2xl space-y-4 animate-in zoom-in-95 duration-200">
             <div className="w-16 h-16 bg-[#22c55e]/10 text-[#22c55e] border border-[#22c55e]/30 rounded-full flex items-center justify-center text-3xl mx-auto">
-              ✓
+              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="20 6 9 17 4 12"/></svg>
             </div>
             
             <h3 className="text-xl font-extrabold text-white">Payment Checkout Scaffolding Active</h3>

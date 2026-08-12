@@ -60,8 +60,8 @@ export default function LandingPage() {
         {/* Feature Cards Grid */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-20 text-left">
           <div className="p-6 border border-[#272734] rounded-xl bg-[#141418] hover:border-[#db4444]/50 transition-colors group">
-            <div className="w-12 h-12 rounded-lg bg-[#db4444]/10 text-[#db4444] flex items-center justify-center text-2xl mb-4 group-hover:scale-110 transition-transform">
-              ⚡
+            <div className="w-12 h-12 rounded-lg bg-[#db4444]/10 text-[#db4444] flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
             </div>
             <h3 className="font-mono text-base font-semibold mb-2 text-white">Instant Merchant Onboarding</h3>
             <p className="text-[#a1a1aa] text-xs leading-relaxed">
@@ -70,8 +70,8 @@ export default function LandingPage() {
           </div>
 
           <div className="p-6 border border-[#272734] rounded-xl bg-[#141418] hover:border-[#db4444]/50 transition-colors group">
-            <div className="w-12 h-12 rounded-lg bg-[#db4444]/10 text-[#db4444] flex items-center justify-center text-2xl mb-4 group-hover:scale-110 transition-transform">
-              🛒
+            <div className="w-12 h-12 rounded-lg bg-[#db4444]/10 text-[#db4444] flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>
             </div>
             <h3 className="font-mono text-base font-semibold mb-2 text-white">Figma-Grade Storefront</h3>
             <p className="text-[#a1a1aa] text-xs leading-relaxed">
@@ -80,8 +80,8 @@ export default function LandingPage() {
           </div>
 
           <div className="p-6 border border-[#272734] rounded-xl bg-[#141418] hover:border-[#db4444]/50 transition-colors group">
-            <div className="w-12 h-12 rounded-lg bg-[#db4444]/10 text-[#db4444] flex items-center justify-center text-2xl mb-4 group-hover:scale-110 transition-transform">
-              💳
+            <div className="w-12 h-12 rounded-lg bg-[#db4444]/10 text-[#db4444] flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
             </div>
             <h3 className="font-mono text-base font-semibold mb-2 text-white">Naira (₦) Payment Gateway</h3>
             <p className="text-[#a1a1aa] text-xs leading-relaxed">

@@ -699,7 +699,8 @@ export default function AdminDashboard() {
                 
                 <div className="flex gap-2 mb-2">
                   <label className="flex-1 cursor-pointer bg-[#181824] hover:bg-[#272734] border border-[#272734] rounded-lg py-2 px-3 text-center text-xs font-semibold text-white transition-colors flex items-center justify-center gap-2">
-                    <span>📤 Upload Image File</span>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                    <span>Upload Image File</span>
                     <input type="file" accept="image/*" onChange={handleImageFileUpload} className="hidden" />
                   </label>
                 </div>
