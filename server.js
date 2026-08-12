@@ -296,7 +296,7 @@ app.put('/api/products/:id', resolveTenant, authenticateToken, requireStoreOwner
            image_url = COALESCE($4, image_url),
            category = COALESCE($5, category),
            description = COALESCE($6, description),
-           original_price = $7,
+           original_price = COALESCE($7, original_price),
            is_featured = COALESCE($8, is_featured),
            is_new_arrival = COALESCE($9, is_new_arrival),
            discount_percent = COALESCE($10, discount_percent),

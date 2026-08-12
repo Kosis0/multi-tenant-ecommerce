@@ -35,6 +35,7 @@ export default function AdminDashboard() {
     description: '',
     image_url: '',
     is_featured: false,
+    is_new_arrival: false,
     discount_percent: '20',
     flash_sale_units: '10',
     images: []
@@ -231,6 +232,7 @@ export default function AdminDashboard() {
         description: product.description || '',
         image_url: product.image_url || '',
         is_featured: !!product.is_featured,
+        is_new_arrival: !!product.is_new_arrival,
         discount_percent: product.discount_percent || '20',
         flash_sale_units: product.flash_sale_units || product.stock || '10',
         images: Array.isArray(parsedImages) ? parsedImages : []
@@ -246,6 +248,7 @@ export default function AdminDashboard() {
         description: '', 
         image_url: '',
         is_featured: false,
+        is_new_arrival: false,
         discount_percent: '20',
         flash_sale_units: '10',
         images: []
@@ -278,6 +281,7 @@ export default function AdminDashboard() {
         description: productForm.description,
         image_url: productForm.image_url,
         is_featured: productForm.is_featured,
+        is_new_arrival: productForm.is_new_arrival,
         discount_percent: parseInt(productForm.discount_percent, 10) || 20,
         flash_sale_units: parseInt(productForm.flash_sale_units, 10) || parseInt(productForm.stock, 10),
         images: productForm.images
@@ -887,6 +891,19 @@ export default function AdminDashboard() {
                   />
                 </div>
 
+                <div className="flex items-center justify-between pt-2 border-t border-[#272734]">
+                  <div>
+                    <span className="text-xs font-bold text-white block">New Arrival Badge</span>
+                    <span className="text-[11px] text-[#a1a1aa]">Mark as new arrival in storefront</span>
+                  </div>
+                  <input
+                    type="checkbox"
+                    checked={productForm.is_new_arrival}
+                    onChange={e => setProductForm({ ...productForm, is_new_arrival: e.target.checked })}
+                    className="w-4 h-4 accent-[#db4444] rounded cursor-pointer"
+                  />
+                </div>
+
                 {productForm.is_featured && (
                   <div className="grid grid-cols-2 gap-3 pt-2 border-t border-[#272734]/60">
                     <div>
@@ -933,7 +950,11 @@ export default function AdminDashboard() {
                 </button>
               </div>
             </form>
-           {/* CATEGORY ADD / EDIT MODAL */}
+          </div>
+        </div>
+      )}
+
+      {/* CATEGORY ADD / EDIT MODAL */}
       {isCategoryModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="fixed inset-0 bg-black/70 backdrop-blur-sm" onClick={() => setIsCategoryModalOpen(false)}></div>
@@ -970,8 +991,6 @@ export default function AdminDashboard() {
               </div>
             </form>
           </div>
-        </div>
-      )}          </div>
         </div>
       )}
 
