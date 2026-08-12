@@ -211,7 +211,9 @@ app.get('/api/products', resolveTenant, async (req, res, next) => {
              COALESCE(is_featured, false) as is_featured, 
              COALESCE(is_new_arrival, false) as is_new_arrival, 
              COALESCE(rating, 4.5) as rating, 
-             COALESCE(review_count, 12) as review_count
+             COALESCE(review_count, 12) as review_count,
+             COALESCE(discount_percent, 20) as discount_percent,
+             COALESCE(flash_sale_units, stock) as flash_sale_units
       FROM products 
       WHERE tenant_id = $1
     `;
@@ -248,16 +250,22 @@ app.post('/api/products', resolveTenant, authenticateToken, requireStoreOwnershi
   const { 
     title, price, stock, image_url, 
     category = 'General', description = '', 
-    original_price = null, is_featured = false, is_new_arrival = false 
+    original_price = null, is_featured = false, is_new_arrival = false,
+    discount_percent = 20, flash_sale_units = null
   } = req.body;
 
   try {
     const { rows } = await pool.query(
       `INSERT INTO products (
         title, price, stock, image_url, tenant_id, 
-        category, description, original_price, is_featured, is_new_arrival
-       ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING *`,
-      [title, price, stock, image_url, req.tenant.id, category, description, original_price, is_featured, is_new_arrival]
+        category, description, original_price, is_featured, is_new_arrival,
+        discount_percent, flash_sale_units
+       ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) RETURNING *`,
+      [
+        title, price, stock, image_url, req.tenant.id, 
+        category, description, original_price, is_featured, is_new_arrival,
+        discount_percent, flash_sale_units || stock
+      ]
     );
     sendSuccess(res, rows[0], 201);
   } catch (err) {
@@ -270,7 +278,8 @@ app.put('/api/products/:id', resolveTenant, authenticateToken, requireStoreOwner
   const { id } = req.params;
   const { 
     title, price, stock, image_url, 
-    category, description, original_price, is_featured, is_new_arrival 
+    category, description, original_price, is_featured, is_new_arrival,
+    discount_percent, flash_sale_units
   } = req.body;
 
   try {
@@ -284,10 +293,16 @@ app.put('/api/products/:id', resolveTenant, authenticateToken, requireStoreOwner
            description = COALESCE($6, description),
            original_price = $7,
            is_featured = COALESCE($8, is_featured),
-           is_new_arrival = COALESCE($9, is_new_arrival)
-       WHERE id = $10 AND tenant_id = $11 
+           is_new_arrival = COALESCE($9, is_new_arrival),
+           discount_percent = COALESCE($10, discount_percent),
+           flash_sale_units = COALESCE($11, flash_sale_units)
+       WHERE id = $12 AND tenant_id = $13 
        RETURNING *`,
-      [title, price, stock, image_url, category, description, original_price, is_featured, is_new_arrival, id, req.tenant.id]
+      [
+        title, price, stock, image_url, category, description, 
+        original_price, is_featured, is_new_arrival, discount_percent, 
+        flash_sale_units, id, req.tenant.id
+      ]
     );
     if (rows.length === 0) return sendError(res, 'Product not found', 404);
     sendSuccess(res, rows[0]);
@@ -330,6 +345,26 @@ app.post('/api/categories', resolveTenant, authenticateToken, requireStoreOwners
       [req.tenant.id, name, icon]
     );
     sendSuccess(res, rows[0], 201);
+  } catch (err) {
+    next(err);
+  }
+});
+
+// PUT /api/categories/:id — Update category name & icon
+app.put('/api/categories/:id', resolveTenant, authenticateToken, requireStoreOwnership, async (req, res, next) => {
+  const { id } = req.params;
+  const { name, icon } = req.body;
+  try {
+    const { rows } = await pool.query(
+      `UPDATE categories 
+       SET name = COALESCE($1, name), 
+           icon = COALESCE($2, icon) 
+       WHERE id = $3 AND tenant_id = $4 
+       RETURNING *`,
+      [name, icon, id, req.tenant.id]
+    );
+    if (rows.length === 0) return sendError(res, 'Category not found', 404);
+    sendSuccess(res, rows[0]);
   } catch (err) {
     next(err);
   }
@@ -384,6 +419,55 @@ app.delete('/api/wishlist/:productId', resolveTenant, async (req, res, next) => 
       [req.tenant.id, sessionId, productId]
     );
     sendSuccess(res, { removed: true });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// GET /api/products/:id/reviews — Fetch product reviews
+app.get('/api/products/:id/reviews', resolveTenant, async (req, res, next) => {
+  const { id } = req.params;
+  try {
+    const { rows } = await pool.query(
+      'SELECT id, author_name, rating, comment, created_at FROM reviews WHERE tenant_id = $1 AND product_id = $2 ORDER BY created_at DESC',
+      [req.tenant.id, id]
+    );
+    sendSuccess(res, rows);
+  } catch (err) {
+    next(err);
+  }
+});
+
+// POST /api/products/:id/reviews — Submit a customer review after purchase/view
+app.post('/api/products/:id/reviews', resolveTenant, async (req, res, next) => {
+  const { id } = req.params;
+  const { authorName = 'Verified Buyer', rating = 5, comment } = req.body;
+
+  if (!comment || !comment.trim()) {
+    return sendError(res, 'Comment is required');
+  }
+
+  try {
+    // Insert review
+    const { rows: newReview } = await pool.query(
+      'INSERT INTO reviews (tenant_id, product_id, author_name, rating, comment) VALUES ($1, $2, $3, $4, $5) RETURNING *',
+      [req.tenant.id, id, authorName, Math.min(5, Math.max(1, Number(rating))), comment]
+    );
+
+    // Calculate new average rating & review count for product
+    const { rows: stats } = await pool.query(
+      'SELECT AVG(rating)::numeric(3,2) as avg_rating, COUNT(*)::int as total_reviews FROM reviews WHERE tenant_id = $1 AND product_id = $2',
+      [req.tenant.id, id]
+    );
+
+    if (stats.length > 0) {
+      await pool.query(
+        'UPDATE products SET rating = $1, review_count = $2 WHERE id = $3 AND tenant_id = $4',
+        [stats[0].avg_rating || 5, stats[0].total_reviews || 1, id, req.tenant.id]
+      );
+    }
+
+    sendSuccess(res, newReview[0], 201);
   } catch (err) {
     next(err);
   }

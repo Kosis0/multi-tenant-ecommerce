@@ -11,6 +11,8 @@ ALTER TABLE products ADD COLUMN IF NOT EXISTS is_featured BOOLEAN DEFAULT false;
 ALTER TABLE products ADD COLUMN IF NOT EXISTS is_new_arrival BOOLEAN DEFAULT false;
 ALTER TABLE products ADD COLUMN IF NOT EXISTS rating NUMERIC(3,2) DEFAULT 4.5;
 ALTER TABLE products ADD COLUMN IF NOT EXISTS review_count INTEGER DEFAULT 12;
+ALTER TABLE products ADD COLUMN IF NOT EXISTS flash_sale_units INTEGER DEFAULT 10;
+ALTER TABLE products ADD COLUMN IF NOT EXISTS discount_percent INTEGER DEFAULT 20;
 ALTER TABLE products ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ DEFAULT NOW();
 
 -- 2. Create wishlists table
@@ -21,6 +23,17 @@ CREATE TABLE IF NOT EXISTS wishlists (
   product_id UUID REFERENCES products(id) ON DELETE CASCADE,
   created_at TIMESTAMPTZ DEFAULT NOW(),
   UNIQUE(session_id, product_id)
+);
+
+-- 2b. Create product reviews table
+CREATE TABLE IF NOT EXISTS reviews (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  tenant_id UUID REFERENCES tenants(id) ON DELETE CASCADE,
+  product_id UUID REFERENCES products(id) ON DELETE CASCADE,
+  author_name TEXT NOT NULL,
+  rating INTEGER CHECK (rating >= 1 AND rating <= 5),
+  comment TEXT NOT NULL,
+  created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
 -- 3. Create categories table

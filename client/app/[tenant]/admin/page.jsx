@@ -34,13 +34,16 @@ export default function AdminDashboard() {
     category: 'General',
     description: '',
     image_url: '',
-    is_featured: false
+    is_featured: false,
+    discount_percent: '20',
+    flash_sale_units: '10'
   });
   const [uploadingImage, setUploadingImage] = useState(false);
   const [productSubmitLoading, setProductSubmitLoading] = useState(false);
 
   // Category Modal state
   const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
+  const [editingCategory, setEditingCategory] = useState(null); // null if creating
   const [newCatName, setNewCatName] = useState('');
   const [newCatIcon, setNewCatIcon] = useState('📦');
 
@@ -219,7 +222,9 @@ export default function AdminDashboard() {
         category: product.category || 'General',
         description: product.description || '',
         image_url: product.image_url || '',
-        is_featured: !!product.is_featured
+        is_featured: !!product.is_featured,
+        discount_percent: product.discount_percent || '20',
+        flash_sale_units: product.flash_sale_units || product.stock || '10'
       });
     } else {
       setProductForm({ 
@@ -231,7 +236,9 @@ export default function AdminDashboard() {
         category: 'General', 
         description: '', 
         image_url: '',
-        is_featured: false 
+        is_featured: false,
+        discount_percent: '20',
+        flash_sale_units: '10'
       });
     }
     setIsProductModalOpen(true);
@@ -260,7 +267,9 @@ export default function AdminDashboard() {
         category: productForm.category,
         description: productForm.description,
         image_url: productForm.image_url,
-        is_featured: productForm.is_featured
+        is_featured: productForm.is_featured,
+        discount_percent: parseInt(productForm.discount_percent, 10) || 20,
+        flash_sale_units: parseInt(productForm.flash_sale_units, 10) || parseInt(productForm.stock, 10)
       };
 
       const res = await authFetch(url, {
@@ -296,22 +305,59 @@ export default function AdminDashboard() {
     }
   };
 
-  const handleAddCategory = async (e) => {
+  const openCategoryModal = (category = null) => {
+    if (category) {
+      setEditingCategory(category);
+      setNewCatName(category.name);
+      setNewCatIcon(category.icon || '📦');
+    } else {
+      setEditingCategory(null);
+      setNewCatName('');
+      setNewCatIcon('📦');
+    }
+    setIsCategoryModalOpen(true);
+  };
+
+  const handleSaveCategory = async (e) => {
     e.preventDefault();
     if (!newCatName) return;
     try {
-      const res = await authFetch(`/api/categories?tenant=${tenantSlug}`, {
-        method: 'POST',
-        body: JSON.stringify({ name: newCatName, icon: newCatIcon })
-      });
-      if (res.success) {
-        addToast('Category added!');
-        setNewCatName('');
-        setIsCategoryModalOpen(false);
-        fetchDashboardData();
+      if (editingCategory) {
+        const res = await authFetch(`/api/categories/${editingCategory.id}?tenant=${tenantSlug}`, {
+          method: 'PUT',
+          body: JSON.stringify({ name: newCatName, icon: newCatIcon })
+        });
+        if (res.success) {
+          addToast('Category updated!');
+          setIsCategoryModalOpen(false);
+          fetchDashboardData();
+        }
+      } else {
+        const res = await authFetch(`/api/categories?tenant=${tenantSlug}`, {
+          method: 'POST',
+          body: JSON.stringify({ name: newCatName, icon: newCatIcon })
+        });
+        if (res.success) {
+          addToast('Category added!');
+          setIsCategoryModalOpen(false);
+          fetchDashboardData();
+        }
       }
     } catch (err) {
-      addToast('Error adding category', 'error');
+      addToast('Error saving category', 'error');
+    }
+  };
+
+  const handleDeleteCategory = async (catId) => {
+    if (!confirm('Are you sure you want to delete this category?')) return;
+    try {
+      await authFetch(`/api/categories/${catId}?tenant=${tenantSlug}`, {
+        method: 'DELETE'
+      });
+      addToast('Category deleted');
+      fetchDashboardData();
+    } catch (err) {
+      addToast('Error deleting category', 'error');
     }
   };
 
@@ -488,22 +534,22 @@ export default function AdminDashboard() {
           {/* Products Management Section */}
           <section className="space-y-4">
             <div className="flex items-center justify-between">
-              <h2 className="text-sm font-bold uppercase tracking-wider text-[#a1a1aa]">Product Catalog</h2>
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => setIsCategoryModalOpen(true)}
-                  className="bg-[#141418] border border-[#272734] text-white py-1.5 px-3 rounded-lg text-xs font-semibold hover:border-[#db4444] transition-colors"
-                >
-                  + Add Category
-                </button>
-                <button
-                  onClick={() => openProductModal()}
-                  className="bg-[#db4444] text-white py-1.5 px-3 rounded-lg text-xs font-semibold hover:bg-[#e53838] transition-colors"
-                >
-                  + Add Product
-                </button>
+                <h2 className="text-sm font-bold uppercase tracking-wider text-[#a1a1aa]">Store Product Catalog</h2>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => openCategoryModal()}
+                    className="bg-[#181824] border border-[#272734] text-white py-1.5 px-3 rounded-lg text-xs font-semibold hover:border-[#db4444] transition-colors"
+                  >
+                    + Add Category
+                  </button>
+                  <button
+                    onClick={() => openProductModal()}
+                    className="bg-[#db4444] text-white py-1.5 px-3 rounded-lg text-xs font-semibold hover:bg-[#e53838] transition-colors"
+                  >
+                    + Add Product
+                  </button>
+                </div>
               </div>
-            </div>
             
             <div className="border border-[#272734] rounded-xl bg-[#141418] overflow-hidden shadow-xl">
               {dataLoading ? (
@@ -561,6 +607,34 @@ export default function AdminDashboard() {
                   ))}
                 </div>
               )}
+            </div>
+          </section>
+
+          {/* Store Categories Management Section */}
+          <section className="space-y-4">
+            <div className="flex items-center justify-between">
+              <h2 className="text-sm font-bold uppercase tracking-wider text-[#a1a1aa]">Store Categories ({categories.length})</h2>
+              <button
+                onClick={() => openCategoryModal()}
+                className="text-xs font-semibold text-[#db4444] hover:underline"
+              >
+                + Create New Category
+              </button>
+            </div>
+            
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              {categories.map(cat => (
+                <div key={cat.id} className="p-3 bg-[#141418] border border-[#272734] rounded-xl flex items-center justify-between hover:border-[#db4444]/50 transition-colors">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <span className="text-lg">{cat.icon || '📦'}</span>
+                    <span className="text-xs font-semibold text-white truncate">{cat.name}</span>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <button onClick={() => openCategoryModal(cat)} className="p-1 text-[#a1a1aa] hover:text-white text-xs">✏️</button>
+                    <button onClick={() => handleDeleteCategory(cat.id)} className="p-1 text-red-400 hover:text-red-300 text-xs">🗑️</button>
+                  </div>
+                </div>
+              ))}
             </div>
           </section>
 
@@ -730,18 +804,48 @@ export default function AdminDashboard() {
                 )}
               </div>
 
-              {/* FLASH SALE / FEATURED TOGGLE */}
-              <div className="p-3 bg-[#181824] border border-[#272734] rounded-lg flex items-center justify-between">
-                <div>
-                  <span className="text-xs font-bold text-white block">Feature in Flash Sales</span>
-                  <span className="text-[11px] text-[#a1a1aa]">Show this item in the top Flash Sales section on your storefront</span>
+              {/* FLASH SALE / FEATURED TOGGLE & OPTIONS */}
+              <div className="p-3 bg-[#181824] border border-[#272734] rounded-lg space-y-3">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <span className="text-xs font-bold text-white block">Feature in Flash Sales</span>
+                    <span className="text-[11px] text-[#a1a1aa]">Show this item in the top Flash Sales banner</span>
+                  </div>
+                  <input
+                    type="checkbox"
+                    checked={productForm.is_featured}
+                    onChange={e => setProductForm({ ...productForm, is_featured: e.target.checked })}
+                    className="w-4 h-4 accent-[#db4444] rounded cursor-pointer"
+                  />
                 </div>
-                <input
-                  type="checkbox"
-                  checked={productForm.is_featured}
-                  onChange={e => setProductForm({ ...productForm, is_featured: e.target.checked })}
-                  className="w-4 h-4 accent-[#db4444] rounded cursor-pointer"
-                />
+
+                {productForm.is_featured && (
+                  <div className="grid grid-cols-2 gap-3 pt-2 border-t border-[#272734]/60">
+                    <div>
+                      <label className="text-[11px] text-[#a1a1aa] block mb-1">Discount (% Off)</label>
+                      <input
+                        type="number"
+                        min="1"
+                        max="99"
+                        value={productForm.discount_percent}
+                        onChange={e => setProductForm({ ...productForm, discount_percent: e.target.value })}
+                        className="w-full px-2.5 py-1.5 bg-[#09090b] border border-[#272734] rounded text-xs text-white outline-none focus:border-[#db4444]"
+                        placeholder="25"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-[11px] text-[#a1a1aa] block mb-1">Flash Sale Stock Units</label>
+                      <input
+                        type="number"
+                        min="1"
+                        value={productForm.flash_sale_units}
+                        onChange={e => setProductForm({ ...productForm, flash_sale_units: e.target.value })}
+                        className="w-full px-2.5 py-1.5 bg-[#09090b] border border-[#272734] rounded text-xs text-white outline-none focus:border-[#db4444]"
+                        placeholder="10"
+                      />
+                    </div>
+                  </div>
+                )}
               </div>
 
               <div className="flex items-center justify-end gap-3 pt-4 border-t border-[#272734]">
@@ -761,18 +865,16 @@ export default function AdminDashboard() {
                 </button>
               </div>
             </form>
-          </div>
-        </div>
-      )}
-
-      {/* CATEGORY ADD MODAL */}
+           {/* CATEGORY ADD / EDIT MODAL */}
       {isCategoryModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="fixed inset-0 bg-black/70 backdrop-blur-sm" onClick={() => setIsCategoryModalOpen(false)}></div>
           
           <div className="relative bg-[#141418] border border-[#272734] rounded-2xl p-6 w-full max-w-sm z-10 space-y-4 shadow-2xl">
-            <h3 className="text-base font-extrabold text-white">Add Store Category</h3>
-            <form onSubmit={handleAddCategory} className="space-y-3">
+            <h3 className="text-base font-extrabold text-white">
+              {editingCategory ? 'Edit Category' : 'Add Store Category'}
+            </h3>
+            <form onSubmit={handleSaveCategory} className="space-y-3">
               <div>
                 <label className="text-xs text-[#a1a1aa] block mb-1">Category Name</label>
                 <input
@@ -785,7 +887,7 @@ export default function AdminDashboard() {
                 />
               </div>
               <div>
-                <label className="text-xs text-[#a1a1aa] block mb-1">Category Emoji Icon</label>
+                <label className="text-xs text-[#a1a1aa] block mb-1">Category Icon / Emoji</label>
                 <input
                   type="text"
                   value={newCatIcon}
@@ -796,10 +898,12 @@ export default function AdminDashboard() {
               </div>
               <div className="flex justify-end gap-2 pt-2">
                 <button type="button" onClick={() => setIsCategoryModalOpen(false)} className="px-3 py-1.5 text-xs text-[#a1a1aa]">Cancel</button>
-                <button type="submit" className="px-4 py-1.5 bg-[#db4444] text-white text-xs font-bold rounded-lg">Save</button>
+                <button type="submit" className="px-4 py-1.5 bg-[#db4444] text-white text-xs font-bold rounded-lg">Save Category</button>
               </div>
             </form>
           </div>
+        </div>
+      )}          </div>
         </div>
       )}
 

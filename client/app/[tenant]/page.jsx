@@ -36,10 +36,12 @@ export default function StorefrontPage({ params }) {
     }
   };
 
-  // Payment Modal Scaffolding State
-  const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
-  const [paymentLoading, setPaymentLoading] = useState(false);
-  const [paymentSuccess, setPaymentSuccess] = useState(null);
+  // Review Modal State
+  const [reviewProduct, setReviewProduct] = useState(null);
+  const [reviewsList, setReviewsList] = useState([]);
+  const [newReview, setNewReview] = useState({ authorName: '', rating: 5, comment: '' });
+  const [reviewLoading, setReviewLoading] = useState(false);
+  const [submittingReview, setSubmittingReview] = useState(false);
 
   // Countdown Timer State (Flash Sales)
   const [timeLeft, setTimeLeft] = useState({
@@ -112,11 +114,48 @@ export default function StorefrontPage({ params }) {
       if (exists) {
         addToast('Removed from Wishlist', 'info');
         return prev.filter(id => id !== productId);
-      } else {
-        addToast('Added to Wishlist!', 'success');
-        return [...prev, productId];
+  // Review Handlers
+  const openReviewModal = async (product) => {
+    setReviewProduct(product);
+    setReviewLoading(true);
+    try {
+      const res = await fetch(`${API_URL}/api/products/${product.id}/reviews?tenant=${tenant}`);
+      const json = await res.json();
+      if (json.success) {
+        setReviewsList(json.data || []);
       }
-    });
+    } catch (err) {
+      console.error('Error loading reviews:', err);
+    } finally {
+      setReviewLoading(false);
+    }
+  };
+
+  const handleReviewSubmit = async (e) => {
+    e.preventDefault();
+    if (!newReview.comment.trim()) return;
+    setSubmittingReview(true);
+    try {
+      const res = await fetch(`${API_URL}/api/products/${reviewProduct.id}/reviews?tenant=${tenant}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newReview)
+      });
+      const json = await res.json();
+      if (json.success) {
+        addToast('Thank you! Review submitted successfully!', 'success');
+        setReviewsList(prev => [json.data, ...prev]);
+        setNewReview({ authorName: '', rating: 5, comment: '' });
+        // Refresh products to show updated rating
+        const prodRes = await fetch(`${API_URL}/api/products?tenant=${tenant}`);
+        const prodJson = await prodRes.json();
+        if (prodJson.success) setProducts(prodJson.data.products || []);
+      }
+    } catch (err) {
+      addToast('Error submitting review', 'error');
+    } finally {
+      setSubmittingReview(false);
+    }
   };
 
   // Add To Cart
@@ -570,14 +609,15 @@ export default function StorefrontPage({ params }) {
               ).map(product => {
                 const isWishlisted = wishlist.includes(product.id);
                 const originalPrice = product.original_price || (Number(product.price) * 1.25);
-                const discountPercent = Math.round(((originalPrice - product.price) / originalPrice) * 100);
+                const calculatedPercent = Math.round(((originalPrice - product.price) / originalPrice) * 100);
+                const discountPercent = product.discount_percent || (calculatedPercent > 0 ? calculatedPercent : 20);
 
                 return (
                   <div key={product.id} className="group relative bg-[#141418] border border-[#272734] rounded-xl overflow-hidden hover:border-[#db4444]/60 transition-all duration-300 flex flex-col">
                     
                     {/* Discount Badge */}
                     <div className="absolute top-3 left-3 z-10 bg-[#db4444] text-white text-[10px] font-bold px-2 py-0.5 rounded">
-                      -{discountPercent > 0 ? discountPercent : 20}%
+                      -{discountPercent}% OFF
                     </div>
 
                     {/* Wishlist Toggle Heart */}
@@ -631,11 +671,16 @@ export default function StorefrontPage({ params }) {
                         <span className="text-[#a1a1aa] line-through text-[11px]">{formatNaira(originalPrice)}</span>
                       </div>
 
-                      {/* Rating Stars & Count */}
-                      <div className="flex items-center gap-1.5 mt-auto text-[11px] text-[#a1a1aa]">
+                      {/* Rating Stars & Count — Clickable for Customer Reviews */}
+                      <button 
+                        onClick={() => openReviewModal(product)}
+                        className="flex items-center gap-1.5 mt-auto text-[11px] text-[#a1a1aa] hover:text-white transition-colors group/review text-left"
+                      >
                         <div className="flex text-amber-400">★★★★☆</div>
-                        <span>({product.review_count || 48})</span>
-                      </div>
+                        <span className="underline decoration-[#272734] group-hover/review:decoration-[#db4444]">
+                          ({product.review_count || 12} reviews)
+                        </span>
+                      </button>
                     </div>
                   </div>
                 );
@@ -965,6 +1010,103 @@ export default function StorefrontPage({ params }) {
             >
               Done / Return to Store
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* CUSTOMER PRODUCT REVIEWS MODAL */}
+      {reviewProduct && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="fixed inset-0 bg-black/80 backdrop-blur-sm" onClick={() => setReviewProduct(null)}></div>
+          
+          <div className="relative bg-[#141418] border border-[#272734] rounded-2xl p-6 sm:p-8 max-w-lg w-full z-10 shadow-2xl space-y-5 animate-in zoom-in-95 duration-200 max-h-[90vh] flex flex-col">
+            <div className="flex items-center justify-between border-b border-[#272734] pb-4">
+              <div>
+                <h3 className="text-base font-extrabold text-white">{reviewProduct.title}</h3>
+                <div className="flex items-center gap-2 text-xs text-[#a1a1aa]">
+                  <span className="text-amber-400">★ {reviewProduct.rating || 4.5}</span>
+                  <span>({reviewsList.length} reviews)</span>
+                </div>
+              </div>
+              <button onClick={() => setReviewProduct(null)} className="text-[#a1a1aa] hover:text-white">✕</button>
+            </div>
+
+            {/* Leave a Review Form */}
+            <form onSubmit={handleReviewSubmit} className="p-4 bg-[#09090b] border border-[#272734] rounded-xl space-y-3">
+              <h4 className="text-xs font-bold uppercase tracking-wider text-white">Write a Customer Review</h4>
+              
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-[11px] text-[#a1a1aa] block mb-1">Your Name</label>
+                  <input 
+                    type="text" 
+                    required 
+                    placeholder="e.g. John D."
+                    value={newReview.authorName}
+                    onChange={e => setNewReview({ ...newReview, authorName: e.target.value })}
+                    className="w-full px-3 py-1.5 bg-[#141418] border border-[#272734] rounded text-xs text-white outline-none focus:border-[#db4444]"
+                  />
+                </div>
+                <div>
+                  <label className="text-[11px] text-[#a1a1aa] block mb-1">Rating</label>
+                  <select 
+                    value={newReview.rating}
+                    onChange={e => setNewReview({ ...newReview, rating: Number(e.target.value) })}
+                    className="w-full px-3 py-1.5 bg-[#141418] border border-[#272734] rounded text-xs text-white outline-none focus:border-[#db4444]"
+                  >
+                    <option value="5">★★★★★ (5 Stars)</option>
+                    <option value="4">★★★★☆ (4 Stars)</option>
+                    <option value="3">★★★☆☆ (3 Stars)</option>
+                    <option value="2">★★☆☆☆ (2 Stars)</option>
+                    <option value="1">★☆☆☆☆ (1 Star)</option>
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label className="text-[11px] text-[#a1a1aa] block mb-1">Your Review</label>
+                <textarea 
+                  required 
+                  rows="2"
+                  placeholder="Share your experience with this product..."
+                  value={newReview.comment}
+                  onChange={e => setNewReview({ ...newReview, comment: e.target.value })}
+                  className="w-full px-3 py-1.5 bg-[#141418] border border-[#272734] rounded text-xs text-white outline-none focus:border-[#db4444]"
+                ></textarea>
+              </div>
+
+              <button 
+                type="submit" 
+                disabled={submittingReview}
+                className="w-full py-2 bg-[#db4444] hover:bg-[#e53838] text-white font-bold text-xs uppercase tracking-wider rounded transition-all"
+              >
+                {submittingReview ? 'Submitting...' : 'Submit Verified Review'}
+              </button>
+            </form>
+
+            {/* Existing Customer Reviews List */}
+            <div className="flex-1 overflow-y-auto space-y-3 pr-1">
+              <h4 className="text-xs font-bold uppercase tracking-wider text-[#a1a1aa]">Customer Feedback</h4>
+              
+              {reviewLoading ? (
+                <div className="text-xs text-[#a1a1aa] text-center py-4">Loading reviews...</div>
+              ) : reviewsList.length === 0 ? (
+                <div className="text-xs text-[#a1a1aa] text-center py-4">No reviews yet. Be the first to leave a review!</div>
+              ) : (
+                reviewsList.map(rev => (
+                  <div key={rev.id} className="p-3 bg-[#181824] border border-[#272734] rounded-lg space-y-1">
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="font-bold text-white">{rev.author_name}</span>
+                      <span className="text-amber-400">{'★'.repeat(rev.rating)}{'☆'.repeat(5 - rev.rating)}</span>
+                    </div>
+                    <p className="text-xs text-[#a1a1aa] leading-relaxed">{rev.comment}</p>
+                    <span className="text-[10px] text-[#a1a1aa] font-mono block">
+                      {new Date(rev.created_at || Date.now()).toLocaleDateString()}
+                    </span>
+                  </div>
+                ))
+              )}
+            </div>
           </div>
         </div>
       )}
