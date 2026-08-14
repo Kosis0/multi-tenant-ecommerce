@@ -1034,71 +1034,90 @@ export default function StorefrontPage({ params }) {
       <main className="flex-1 max-w-6xl mx-auto px-4 sm:px-6 py-6 w-full space-y-12">
         
         {/* EDITORIAL CLAY HERO BANNER SECTION */}
-        <section className="relative rounded-3xl bg-[var(--card-clay)] border border-[var(--border)] overflow-hidden p-8 sm:p-14 transition-all duration-300 shadow-sm">
-          {/* Subtle decorative background shapes */}
-          <div className="absolute top-0 right-0 w-96 h-96 rounded-full bg-[var(--accent-light)] blur-3xl pointer-events-none -mr-20 -mt-20"></div>
-          <div className="absolute bottom-0 left-1/3 w-64 h-64 rounded-full bg-[var(--accent-clay)] blur-2xl pointer-events-none"></div>
+        {(() => {
+          // Determine which product to showcase in Hero
+          const heroProduct = (storeData?.hero_product_id && products.find(p => p.id === Number(storeData.hero_product_id))) ||
+                              products.find(p => p.is_featured) ||
+                              products[0] ||
+                              null;
+          
+          const heroImage = heroProduct?.image_url || "https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?auto=format&fit=crop&w=800&q=80";
+          const heroItemTitle = heroProduct ? heroProduct.title : "Summer Elegance";
+          const heroItemPrice = heroProduct ? formatNaira(heroProduct.price) : "From ₦25,000";
+          const heroBadgeText = storeData?.hero_badge || "Spring / Summer 2026 Collection";
+          const heroMainTitle = storeData?.hero_title || "Admire Stylish Dresses & Looks";
+          const heroSubtitleText = storeData?.hero_subtitle || "Discover curated contemporary fashion, luxury footwear, and modern lifestyle essentials with seamless Naira checkout.";
 
-          <div className="relative z-10 grid grid-cols-1 md:grid-cols-12 gap-8 items-center">
-            
-            {/* Left Content */}
-            <div className="md:col-span-7 space-y-5 text-center md:text-left">
-              <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-[var(--surface)]/80 backdrop-blur-xs border border-[var(--border)] text-[var(--muted)] text-[11px] font-semibold uppercase tracking-widest">
-                <span className="w-2 h-2 rounded-full bg-[var(--accent)]"></span> Spring / Summer 2026 Collection
-              </div>
-              
-              <h1 className="font-editorial text-4xl sm:text-6xl lg:text-7xl font-normal tracking-tight text-[var(--foreground)] leading-[1.1]">
-                Admire Stylish <br className="hidden sm:inline" />
-                <span className="italic font-normal text-[var(--accent-dark)]">Dresses & Looks</span>
-              </h1>
+          return (
+            <section className="relative rounded-3xl bg-[var(--card-clay)] border border-[var(--border)] overflow-hidden p-8 sm:p-14 transition-all duration-300 shadow-sm">
+              {/* Subtle decorative background shapes */}
+              <div className="absolute top-0 right-0 w-96 h-96 rounded-full bg-[var(--accent-light)] blur-3xl pointer-events-none -mr-20 -mt-20"></div>
+              <div className="absolute bottom-0 left-1/3 w-64 h-64 rounded-full bg-[var(--accent-clay)] blur-2xl pointer-events-none"></div>
 
-              <p className="text-sm sm:text-base text-[var(--muted)] max-w-lg leading-relaxed">
-                Discover curated contemporary fashion, luxury footwear, and modern lifestyle essentials with seamless Naira checkout.
-              </p>
-
-              <div className="pt-2 flex flex-wrap items-center justify-center md:justify-start gap-4">
-                <a 
-                  href="#products-grid" 
-                  className="btn-clay"
-                >
-                  <span>Show More</span>
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
-                </a>
-
-                <a 
-                  href="#categories-section" 
-                  className="btn-clay-outline"
-                >
-                  Browse Catalog
-                </a>
-              </div>
-            </div>
-
-            {/* Right Editorial Showcase Card */}
-            <div className="md:col-span-5 flex justify-center md:justify-end">
-              <div className="relative w-full max-w-xs aspect-[4/5] rounded-3xl overflow-hidden shadow-clay border border-[var(--card-border)] bg-[var(--surface)] group">
-                <Image 
-                  src="https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?auto=format&fit=crop&w=800&q=80" 
-                  alt="Editorial Look" 
-                  fill 
-                  sizes="(max-width: 768px) 100vw, 400px" 
-                  className="object-cover group-hover:scale-105 transition-transform duration-700" 
-                  priority
-                />
+              <div className="relative z-10 grid grid-cols-1 md:grid-cols-12 gap-8 items-center">
                 
-                {/* Floating Clay Floating Tag */}
-                <div className="absolute bottom-4 inset-x-4 p-3.5 rounded-2xl bg-[var(--surface)]/90 backdrop-blur-md border border-[var(--border)] flex items-center justify-between shadow-soft">
-                  <div>
-                    <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--muted)] block">New In Store</span>
-                    <span className="text-xs font-semibold text-[var(--foreground)]">Summer Elegance</span>
+                {/* Left Content */}
+                <div className="md:col-span-7 space-y-5 text-center md:text-left">
+                  <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-[var(--surface)]/80 backdrop-blur-xs border border-[var(--border)] text-[var(--muted)] text-[11px] font-semibold uppercase tracking-widest">
+                    <span className="w-2 h-2 rounded-full bg-[var(--accent)]"></span> {heroBadgeText}
                   </div>
-                  <span className="text-xs font-mono font-bold text-[var(--accent-dark)]">From ₦25,000</span>
-                </div>
-              </div>
-            </div>
+                  
+                  <h1 className="font-editorial text-4xl sm:text-6xl lg:text-7xl font-normal tracking-tight text-[var(--foreground)] leading-[1.1]">
+                    {heroMainTitle}
+                  </h1>
 
-          </div>
-        </section>
+                  <p className="text-sm sm:text-base text-[var(--muted)] max-w-lg leading-relaxed">
+                    {heroSubtitleText}
+                  </p>
+
+                  <div className="pt-2 flex flex-wrap items-center justify-center md:justify-start gap-4">
+                    <a 
+                      href="#products-grid" 
+                      className="btn-clay"
+                    >
+                      <span>Show More</span>
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+                    </a>
+
+                    <a 
+                      href="#categories-section" 
+                      className="btn-clay-outline"
+                    >
+                      Browse Catalog
+                    </a>
+                  </div>
+                </div>
+
+                {/* Right Editorial Showcase Card */}
+                <div className="md:col-span-5 flex justify-center md:justify-end">
+                  <div 
+                    onClick={() => { if (heroProduct) openProductDetail(heroProduct); }}
+                    className="relative w-full max-w-xs aspect-[4/5] rounded-3xl overflow-hidden shadow-clay border border-[var(--card-border)] bg-[var(--surface)] group cursor-pointer"
+                  >
+                    <Image 
+                      src={heroImage} 
+                      alt={heroItemTitle} 
+                      fill 
+                      sizes="(max-width: 768px) 100vw, 400px" 
+                      className="object-cover group-hover:scale-105 transition-transform duration-700" 
+                      priority
+                    />
+                    
+                    {/* Floating Clay Floating Tag */}
+                    <div className="absolute bottom-4 inset-x-4 p-3.5 rounded-2xl bg-[var(--surface)]/90 backdrop-blur-md border border-[var(--border)] flex items-center justify-between shadow-soft">
+                      <div className="overflow-hidden pr-2">
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--muted)] block">Featured in Hero</span>
+                        <span className="text-xs font-semibold text-[var(--foreground)] truncate block">{heroItemTitle}</span>
+                      </div>
+                      <span className="text-xs font-mono font-bold text-[var(--accent-dark)] shrink-0">{heroItemPrice}</span>
+                    </div>
+                  </div>
+                </div>
+
+              </div>
+            </section>
+          );
+        })()}
 
         {/* FEATURED CATEGORY TILES (CLAY SHOP STYLE) */}
         <section id="categories-section" className="grid grid-cols-1 sm:grid-cols-3 gap-6">

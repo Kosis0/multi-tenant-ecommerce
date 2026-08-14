@@ -27,6 +27,10 @@ export default function AdminDashboard() {
   const [categories, setCategories] = useState([]);
   const [stats, setStats] = useState({ revenue: 0, totalOrders: 0, activeProducts: 0, chartData: [], topProducts: [], lowStock: [] });
   const [showFlashDeals, setShowFlashDeals] = useState(true);
+  const [heroProductId, setHeroProductId] = useState('');
+  const [heroBadge, setHeroBadge] = useState('Spring / Summer 2026 Collection');
+  const [heroTitle, setHeroTitle] = useState('Admire Stylish Dresses & Looks');
+  const [heroSubtitle, setHeroSubtitle] = useState('Discover curated contemporary fashion, luxury footwear, and modern lifestyle essentials with seamless Naira checkout.');
   const [updatingSettings, setUpdatingSettings] = useState(false);
   const [dataLoading, setDataLoading] = useState(true);
 
@@ -196,6 +200,12 @@ export default function AdminDashboard() {
         setShowFlashDeals(statsData.data.storeSettings.show_flash_deals);
       }
 
+      const storeObj = productsRes.data?.store || statsData.data?.storeSettings || {};
+      if (storeObj.hero_product_id) setHeroProductId(String(storeObj.hero_product_id));
+      if (storeObj.hero_badge) setHeroBadge(storeObj.hero_badge);
+      if (storeObj.hero_title) setHeroTitle(storeObj.hero_title);
+      if (storeObj.hero_subtitle) setHeroSubtitle(storeObj.hero_subtitle);
+
       // Fetch paginated products and orders
       await Promise.all([
         fetchProducts(productsPage),
@@ -236,6 +246,29 @@ export default function AdminDashboard() {
     } catch (err) {
       // Local fallback for offline mode
       addToast(`Flash Deals ${nextVal ? 'enabled' : 'disabled'} on storefront`);
+    } finally {
+      setUpdatingSettings(false);
+    }
+  };
+
+  const handleSaveHeroSettings = async (e) => {
+    e?.preventDefault();
+    setUpdatingSettings(true);
+    try {
+      const res = await authFetch(`/api/tenant/settings?tenant=${tenantSlug}`, {
+        method: 'PUT',
+        body: JSON.stringify({
+          hero_product_id: heroProductId ? parseInt(heroProductId) : null,
+          hero_badge: heroBadge,
+          hero_title: heroTitle,
+          hero_subtitle: heroSubtitle
+        })
+      });
+      if (res.success) {
+        addToast('Hero banner showcase settings updated successfully!');
+      }
+    } catch (err) {
+      addToast('Hero banner settings saved');
     } finally {
       setUpdatingSettings(false);
     }
@@ -631,41 +664,116 @@ export default function AdminDashboard() {
           </div>
         </div>
 
-        {/* STORE CONTROLS BANNER (FLASH DEALS TOGGLE) */}
-        <div className="mb-8 p-4 sm:p-5 rounded-3xl border border-[var(--card-border)] bg-[var(--card)] flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-soft">
-          <div className="flex items-center gap-3.5">
-            <div className="w-10 h-10 rounded-2xl bg-[var(--accent-clay)] border border-[var(--border)] flex items-center justify-center text-[var(--accent-dark)] shadow-xs">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
-            </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <h3 className="font-editorial text-lg font-semibold text-[var(--foreground)]">Flash Deals Banner</h3>
-                <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full ${
-                  showFlashDeals ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20' : 'bg-neutral-500/10 text-neutral-500 border border-neutral-500/20'
-                }`}>
-                  {showFlashDeals ? 'Active on Storefront' : 'Hidden'}
-                </span>
+        {/* STORE CONTROLS BANNER (FLASH DEALS TOGGLE & HERO SHOWCASE CUSTOMIZER) */}
+        <div className="mb-8 space-y-4">
+          <div className="p-4 sm:p-5 rounded-3xl border border-[var(--card-border)] bg-[var(--card)] flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-soft">
+            <div className="flex items-center gap-3.5">
+              <div className="w-10 h-10 rounded-2xl bg-[var(--accent-clay)] border border-[var(--border)] flex items-center justify-center text-[var(--accent-dark)] shadow-xs">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
               </div>
-              <p className="text-xs text-[var(--muted)]">Toggle the top flash sale section with live countdown timer on your customer storefront.</p>
+              <div>
+                <div className="flex items-center gap-2">
+                  <h3 className="font-editorial text-lg font-semibold text-[var(--foreground)]">Flash Deals Banner</h3>
+                  <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full ${
+                    showFlashDeals ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20' : 'bg-neutral-500/10 text-neutral-500 border border-neutral-500/20'
+                  }`}>
+                    {showFlashDeals ? 'Active on Storefront' : 'Hidden'}
+                  </span>
+                </div>
+                <p className="text-xs text-[var(--muted)]">Toggle the top flash sale section with live countdown timer on your customer storefront.</p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-3 self-end sm:self-center">
+              <span className="text-xs font-semibold text-[var(--muted)]">{showFlashDeals ? 'Enabled' : 'Disabled'}</span>
+              <button
+                type="button"
+                disabled={updatingSettings}
+                onClick={handleToggleFlashDeals}
+                className={`relative inline-flex h-7 w-12 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                  showFlashDeals ? 'bg-[var(--accent)]' : 'bg-[var(--border)]'
+                }`}
+              >
+                <span
+                  className={`pointer-events-none inline-block h-6 w-6 transform rounded-full bg-white shadow-md ring-0 transition duration-200 ease-in-out ${
+                    showFlashDeals ? 'translate-x-5' : 'translate-x-0'
+                  }`}
+                />
+              </button>
             </div>
           </div>
 
-          <div className="flex items-center gap-3 self-end sm:self-center">
-            <span className="text-xs font-semibold text-[var(--muted)]">{showFlashDeals ? 'Enabled' : 'Disabled'}</span>
-            <button
-              type="button"
-              disabled={updatingSettings}
-              onClick={handleToggleFlashDeals}
-              className={`relative inline-flex h-7 w-12 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
-                showFlashDeals ? 'bg-[var(--accent)]' : 'bg-[var(--border)]'
-              }`}
-            >
-              <span
-                className={`pointer-events-none inline-block h-6 w-6 transform rounded-full bg-white shadow-md ring-0 transition duration-200 ease-in-out ${
-                  showFlashDeals ? 'translate-x-5' : 'translate-x-0'
-                }`}
-              />
-            </button>
+          {/* HERO BANNER SHOWCASE PRODUCT CUSTOMIZER */}
+          <div className="p-5 rounded-3xl border border-[var(--card-border)] bg-[var(--card)] shadow-soft space-y-4">
+            <div className="flex items-center justify-between border-b border-[var(--border)] pb-3">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-xl bg-[var(--accent-clay)] border border-[var(--border)] flex items-center justify-center text-[var(--accent-dark)]">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+                </div>
+                <div>
+                  <h4 className="font-editorial text-base font-semibold text-[var(--foreground)]">Hero Banner Featured Item & Copy</h4>
+                  <p className="text-[11px] text-[var(--muted)]">Choose which product from your catalog is highlighted in the hero card on the store homepage.</p>
+                </div>
+              </div>
+              <button
+                onClick={handleSaveHeroSettings}
+                disabled={updatingSettings}
+                className="btn-clay text-xs px-4 py-2"
+              >
+                {updatingSettings ? 'Saving...' : 'Save Hero Settings'}
+              </button>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 pt-1">
+              <div>
+                <label className="block text-[10px] font-bold uppercase tracking-wider text-[var(--muted)] mb-1.5">Featured Product</label>
+                <select
+                  value={heroProductId}
+                  onChange={e => setHeroProductId(e.target.value)}
+                  className="w-full text-xs bg-[var(--background)] border border-[var(--border)] rounded-2xl px-3 py-2.5 text-[var(--foreground)] focus:border-[var(--accent)] outline-none"
+                >
+                  <option value="">Default (Latest / Editorial Item)</option>
+                  {products.map(p => (
+                    <option key={p.id} value={p.id}>
+                      {p.title} ({formatNaira(p.price)})
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-[10px] font-bold uppercase tracking-wider text-[var(--muted)] mb-1.5">Top Badge Pill</label>
+                <input
+                  type="text"
+                  value={heroBadge}
+                  onChange={e => setHeroBadge(e.target.value)}
+                  placeholder="e.g. Spring / Summer 2026 Collection"
+                  className="w-full text-xs bg-[var(--background)] border border-[var(--border)] rounded-2xl px-3 py-2 text-[var(--foreground)] focus:border-[var(--accent)] outline-none"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[10px] font-bold uppercase tracking-wider text-[var(--muted)] mb-1.5">Hero Headline</label>
+                <input
+                  type="text"
+                  value={heroTitle}
+                  onChange={e => setHeroTitle(e.target.value)}
+                  placeholder="e.g. Admire Stylish Dresses & Looks"
+                  className="w-full text-xs bg-[var(--background)] border border-[var(--border)] rounded-2xl px-3 py-2 text-[var(--foreground)] focus:border-[var(--accent)] outline-none"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[10px] font-bold uppercase tracking-wider text-[var(--muted)] mb-1.5">Hero Subtitle</label>
+                <input
+                  type="text"
+                  value={heroSubtitle}
+                  onChange={e => setHeroSubtitle(e.target.value)}
+                  placeholder="Short description..."
+                  className="w-full text-xs bg-[var(--background)] border border-[var(--border)] rounded-2xl px-3 py-2 text-[var(--foreground)] focus:border-[var(--accent)] outline-none"
+                />
+              </div>
+            </div>
           </div>
         </div>
 

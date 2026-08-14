@@ -496,7 +496,11 @@ app.get('/api/products', resolveTenant, async (req, res, next) => {
     sendSuccess(res, { 
       store: {
         ...req.tenant,
-        show_flash_deals: req.tenant.show_flash_deals !== false
+        show_flash_deals: req.tenant.show_flash_deals !== false,
+        hero_product_id: req.tenant.hero_product_id || null,
+        hero_badge: req.tenant.hero_badge || null,
+        hero_title: req.tenant.hero_title || null,
+        hero_subtitle: req.tenant.hero_subtitle || null
       }, 
       products, 
       categories,
@@ -1088,7 +1092,11 @@ app.get('/api/admin/stats', resolveTenant, authenticateToken, requireStoreOwners
       topProducts: topProductsRes.rows,
       lowStock: lowStockRes.rows,
       storeSettings: {
-        show_flash_deals: req.tenant.show_flash_deals !== false
+        show_flash_deals: req.tenant.show_flash_deals !== false,
+        hero_product_id: req.tenant.hero_product_id || null,
+        hero_badge: req.tenant.hero_badge || null,
+        hero_title: req.tenant.hero_title || null,
+        hero_subtitle: req.tenant.hero_subtitle || null
       }
     });
   } catch (err) {
@@ -1096,31 +1104,51 @@ app.get('/api/admin/stats', resolveTenant, authenticateToken, requireStoreOwners
   }
 });
 
-// PUT /api/tenant/settings — Update store settings (e.g. Flash Deals toggle)
+// PUT /api/tenant/settings — Update store settings (Flash Deals toggle, Hero Showcase Product)
 app.put('/api/tenant/settings', resolveTenant, authenticateToken, requireStoreOwnership, async (req, res, next) => {
   try {
-    const { show_flash_deals } = req.body;
+    const { show_flash_deals, hero_product_id, hero_badge, hero_title, hero_subtitle } = req.body;
     
-    // Check if column exists in database, otherwise handle gracefully
+    // Auto-create any missing columns in tenants table
     try {
-      await pool.query(
-        'UPDATE tenants SET show_flash_deals = $1 WHERE id = $2',
-        [show_flash_deals === true, req.tenant.id]
-      );
+      await pool.query('ALTER TABLE tenants ADD COLUMN IF NOT EXISTS show_flash_deals BOOLEAN DEFAULT TRUE');
+      await pool.query('ALTER TABLE tenants ADD COLUMN IF NOT EXISTS hero_product_id INTEGER');
+      await pool.query('ALTER TABLE tenants ADD COLUMN IF NOT EXISTS hero_badge VARCHAR(255)');
+      await pool.query('ALTER TABLE tenants ADD COLUMN IF NOT EXISTS hero_title VARCHAR(255)');
+      await pool.query('ALTER TABLE tenants ADD COLUMN IF NOT EXISTS hero_subtitle TEXT');
     } catch (colErr) {
-      // If column does not exist, add it automatically
-      try {
-        await pool.query('ALTER TABLE tenants ADD COLUMN IF NOT EXISTS show_flash_deals BOOLEAN DEFAULT TRUE');
-        await pool.query(
-          'UPDATE tenants SET show_flash_deals = $1 WHERE id = $2',
-          [show_flash_deals === true, req.tenant.id]
-        );
-      } catch (alterErr) {
-        console.warn('Could not persist show_flash_deals to tenants table, returning payload:', alterErr.message);
-      }
+      // Ignore migration errors if already exists
     }
 
-    sendSuccess(res, { show_flash_deals: show_flash_deals === true });
+    try {
+      await pool.query(
+        `UPDATE tenants 
+         SET show_flash_deals = COALESCE($1, show_flash_deals),
+             hero_product_id = $2,
+             hero_badge = COALESCE($3, hero_badge),
+             hero_title = COALESCE($4, hero_title),
+             hero_subtitle = COALESCE($5, hero_subtitle)
+         WHERE id = $6`,
+        [
+          show_flash_deals !== undefined ? show_flash_deals === true : null,
+          hero_product_id !== undefined ? (hero_product_id ? parseInt(hero_product_id) : null) : req.tenant.hero_product_id,
+          hero_badge !== undefined ? hero_badge : null,
+          hero_title !== undefined ? hero_title : null,
+          hero_subtitle !== undefined ? hero_subtitle : null,
+          req.tenant.id
+        ]
+      );
+    } catch (updateErr) {
+      console.warn('Could not persist all settings to tenants table:', updateErr.message);
+    }
+
+    sendSuccess(res, { 
+      show_flash_deals: show_flash_deals !== undefined ? show_flash_deals === true : req.tenant.show_flash_deals,
+      hero_product_id: hero_product_id !== undefined ? hero_product_id : req.tenant.hero_product_id,
+      hero_badge,
+      hero_title,
+      hero_subtitle
+    });
   } catch (err) {
     next(err);
   }
