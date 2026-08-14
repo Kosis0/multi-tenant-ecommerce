@@ -80,6 +80,12 @@ export default function AdminDashboard() {
 
   useEffect(() => {
     if (token && tenantSlug) {
+      fetchDashboardData();
+    }
+  }, [token, tenantSlug]);
+
+  useEffect(() => {
+    if (token && tenantSlug) {
       fetchProducts(productsPage);
     }
   }, [productsPage]);
