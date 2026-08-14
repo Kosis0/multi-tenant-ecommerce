@@ -1,6 +1,8 @@
 'use client';
 
 import { use, useEffect, useState, useRef } from 'react';
+import Image from 'next/image';
+import { motion, AnimatePresence } from 'framer-motion';
 
 export default function StorefrontPage({ params }) {
   const unwrappedParams = use(params);
@@ -11,19 +13,42 @@ export default function StorefrontPage({ params }) {
   const [storeData, setStoreData] = useState(null);
   const [products, setProducts] = useState([]);
   const [categories, setCategories] = useState([]);
+  
+  // Pagination State
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
 
   // Filters & State
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [searchQuery, setSearchQuery] = useState('');
   const [wishlist, setWishlist] = useState([]);
   const [sessionId, setSessionId] = useState('');
-  const [cart, setCart] = useState([]);
+  const [cart, setCart] = useState(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const saved = localStorage.getItem(`cart_${tenant}`);
+        return saved ? JSON.parse(saved) : [];
+      } catch { return []; }
+    }
+    return [];
+  });
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [isWishlistOpen, setIsWishlistOpen] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [paymentLoading, setPaymentLoading] = useState(false);
   const [paymentSuccess, setPaymentSuccess] = useState(null);
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
+  
+  // Customer Auth & Account State
+  const [customer, setCustomer] = useState(null);
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+  const [authMode, setAuthMode] = useState('login');
+  const [authForm, setAuthForm] = useState({ name: '', email: '', password: '', phone: '', address: '' });
+  const [authError, setAuthError] = useState('');
+  const [authLoading, setAuthLoading] = useState(false);
+  const [customerOrders, setCustomerOrders] = useState([]);
+  const [isAccountModalOpen, setIsAccountModalOpen] = useState(false);
   const productsGridRef = useRef(null);
 
   // Scroll to products grid (used when searching)
@@ -50,6 +75,7 @@ export default function StorefrontPage({ params }) {
   // Product Detail Modal State (Gallery & Rich Description)
   const [selectedDetailProduct, setSelectedDetailProduct] = useState(null);
   const [activeDetailImage, setActiveDetailImage] = useState(null);
+  const [selectedVariant, setSelectedVariant] = useState(null);
 
   // Countdown Timer State (Flash Sales)
   const [timeLeft, setTimeLeft] = useState({
@@ -61,6 +87,13 @@ export default function StorefrontPage({ params }) {
 
   const [toasts, setToasts] = useState([]);
   const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://my-ecommerce-backend-uwkx.onrender.com';
+
+  // Bug Fix #1: Persist cart to localStorage whenever it changes
+  useEffect(() => {
+    if (typeof window !== 'undefined' && cart.length >= 0) {
+      localStorage.setItem(`cart_${tenant}`, JSON.stringify(cart));
+    }
+  }, [cart, tenant]);
 
   // Live Flash Sale Timer Effect
   useEffect(() => {
@@ -75,6 +108,18 @@ export default function StorefrontPage({ params }) {
     }, 1000);
     return () => clearInterval(timer);
   }, []);
+
+  // Customer Init
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const savedCustomer = localStorage.getItem(`customer_${tenant}`);
+      if (savedCustomer) {
+        try {
+          setCustomer(JSON.parse(savedCustomer));
+        } catch (e) {}
+      }
+    }
+  }, [tenant]);
 
   // Wishlist Init
   useEffect(() => {
@@ -101,10 +146,10 @@ export default function StorefrontPage({ params }) {
     return {
       store: { name: `${name} Official Store`, slug: tenantSlug },
       categories: [
-        { id: 1, name: 'Shoes', icon: '👟' },
-        { id: 2, name: 'Apparel', icon: '👕' },
-        { id: 3, name: 'Accessories', icon: '🎒' },
-        { id: 4, name: 'Electronics', icon: '🎧' }
+        { id: 1, name: 'Shoes' },
+        { id: 2, name: 'Apparel' },
+        { id: 3, name: 'Accessories' },
+        { id: 4, name: 'Electronics' }
       ],
       products: [
         {
@@ -180,33 +225,60 @@ export default function StorefrontPage({ params }) {
   };
 
   // Fetch Storefront Data
-  useEffect(() => {
-    async function fetchStorefront() {
-      try {
-        const res = await fetch(`${API_URL}/api/products?tenant=${tenant}`);
-        if (res.ok) {
-          const json = await res.json();
-          if (json.success && json.data) {
-            setStoreData(json.data.store);
-            setProducts(json.data.products?.length > 0 ? json.data.products : getDemoStoreData(tenant).products);
-            setCategories(json.data.categories?.length > 0 ? json.data.categories : getDemoStoreData(tenant).categories);
-            setLoading(false);
-            return;
+  const fetchProducts = async (pageNum, isLoadMore = false) => {
+    if (isLoadMore) setLoadingMore(true);
+    else setLoading(true);
+
+    try {
+      const res = await fetch(`${API_URL}/api/products?tenant=${tenant}&page=${pageNum}&limit=12`);
+      if (res.ok) {
+        const json = await res.json();
+        if (json.success && json.data) {
+          setStoreData(json.data.store);
+          setCategories(json.data.categories?.length > 0 ? json.data.categories : getDemoStoreData(tenant).categories);
+          
+          const newProducts = json.data.products?.length > 0 ? json.data.products : getDemoStoreData(tenant).products;
+          
+          if (isLoadMore) {
+            setProducts(prev => [...prev, ...newProducts]);
+          } else {
+            setProducts(newProducts);
           }
+
+          if (json.data.pagination) {
+            setHasMore(pageNum < json.data.pagination.totalPages);
+          } else {
+            setHasMore(false);
+          }
+          
+          setLoading(false);
+          setLoadingMore(false);
+          return;
         }
-      } catch (err) {
-        console.warn('API fetch failed, utilizing demo store fallback:', err);
       }
-      
-      // Fallback for unseeded stores or offline backend
-      const demo = getDemoStoreData(tenant);
-      setStoreData(demo.store);
-      setProducts(demo.products);
-      setCategories(demo.categories);
-      setLoading(false);
+    } catch (err) {
+      console.warn('API fetch failed, utilizing demo store fallback:', err);
     }
-    fetchStorefront();
+    
+    // Fallback for unseeded stores or offline backend
+    const demo = getDemoStoreData(tenant);
+    setStoreData(demo.store);
+    setProducts(demo.products);
+    setCategories(demo.categories);
+    setHasMore(false);
+    setLoading(false);
+    setLoadingMore(false);
+  };
+
+  useEffect(() => {
+    fetchProducts(1);
   }, [tenant, API_URL]);
+
+  const loadMore = () => {
+    const nextPage = page + 1;
+    setPage(nextPage);
+    fetchProducts(nextPage, true);
+  };
 
   // Toast Helper
   const addToast = (message, type = 'success') => {
@@ -252,6 +324,70 @@ export default function StorefrontPage({ params }) {
     }
   };
 
+  // --- Customer Auth Logic ---
+  const handleAuthSubmit = async (e) => {
+    e.preventDefault();
+    setAuthLoading(true);
+    setAuthError('');
+    
+    try {
+      const endpoint = authMode === 'login' ? '/api/customers/login' : '/api/customers/register';
+      const res = await fetch(`${API_URL}${endpoint}?tenant=${tenant}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(authForm)
+      });
+      const data = await res.json();
+      
+      if (!data.success) {
+        setAuthError(data.error || 'Authentication failed');
+      } else {
+        localStorage.setItem(`customer_${tenant}`, JSON.stringify(data.data.customer));
+        localStorage.setItem(`customerToken_${tenant}`, data.data.token);
+        setCustomer(data.data.customer);
+        setIsAuthModalOpen(false);
+        addToast(authMode === 'login' ? 'Logged in successfully!' : 'Account created successfully!', 'success');
+      }
+    } catch (err) {
+      setAuthError('Network error');
+    } finally {
+      setAuthLoading(false);
+    }
+  };
+
+  const logoutCustomer = () => {
+    localStorage.removeItem(`customer_${tenant}`);
+    localStorage.removeItem(`customerToken_${tenant}`);
+    setCustomer(null);
+    setCustomerOrders([]);
+    setIsAccountModalOpen(false);
+    addToast('Logged out successfully', 'info');
+  };
+
+  const fetchCustomerOrders = async () => {
+    const token = localStorage.getItem(`customerToken_${tenant}`);
+    if (!token) return;
+    
+    try {
+      const res = await fetch(`${API_URL}/api/customers/orders?tenant=${tenant}`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      const data = await res.json();
+      if (data.success) {
+        setCustomerOrders(data.data);
+      }
+    } catch (err) {
+      console.error('Failed to fetch orders', err);
+    }
+  };
+
+  useEffect(() => {
+    if (isAccountModalOpen && customer) {
+      fetchCustomerOrders();
+    }
+  }, [isAccountModalOpen, customer]);
+  // -------------------------
+
   // Review Handlers
   const openReviewModal = async (product) => {
     setReviewProduct(product);
@@ -285,9 +421,13 @@ export default function StorefrontPage({ params }) {
         setReviewsList(prev => [json.data, ...prev]);
         setNewReview({ authorName: '', rating: 5, comment: '' });
         // Refresh products to show updated rating
-        const prodRes = await fetch(`${API_URL}/api/products?tenant=${tenant}`);
+        const prodRes = await fetch(`${API_URL}/api/products?tenant=${tenant}&page=1&limit=12`);
         const prodJson = await prodRes.json();
-        if (prodJson.success) setProducts(prodJson.data.products || []);
+        if (prodJson.success && prodJson.data.products?.length > 0) {
+          setProducts(prodJson.data.products);
+          setPage(1);
+          setHasMore(prodJson.data.pagination?.totalPages > 1);
+        }
       }
     } catch (err) {
       addToast('Error submitting review', 'error');
@@ -298,6 +438,7 @@ export default function StorefrontPage({ params }) {
 
   const openProductDetail = (product) => {
     setSelectedDetailProduct(product);
+    setSelectedVariant(product.variants && product.variants.length > 0 ? product.variants[0] : null);
     let parsedImages = [];
     try {
       parsedImages = typeof product.images === 'string' ? JSON.parse(product.images) : (product.images || []);
@@ -309,38 +450,47 @@ export default function StorefrontPage({ params }) {
   };
 
   // Add To Cart
-  const addToCart = (product) => {
-    if (product.stock === 0) return;
+  const addToCart = (product, variant = null) => {
+    const itemStock = variant ? variant.stock : product.stock;
+    const itemPrice = variant ? Number(product.price) + Number(variant.price_adjustment) : Number(product.price);
+    const itemTitle = variant ? `${product.title} - ${variant.value}` : product.title;
+    
+    if (itemStock === 0) {
+      addToast(`Out of stock`, 'error');
+      return;
+    }
     
     setCart(prev => {
-      const existing = prev.find(item => item.product_id === product.id);
+      const existing = prev.find(item => item.product_id === product.id && item.variant_id === (variant ? variant.id : null));
       if (existing) {
-        if (existing.quantity >= product.stock) {
-          addToast(`Only ${product.stock} in stock`, 'error');
+        if (existing.quantity >= itemStock) {
+          addToast(`Only ${itemStock} in stock`, 'error');
           return prev;
         }
-        addToast(`Updated ${product.title} quantity in Cart`, 'success');
+        addToast(`Updated ${itemTitle} quantity in Cart`, 'success');
         return prev.map(item => 
-          item.product_id === product.id 
+          (item.product_id === product.id && item.variant_id === (variant ? variant.id : null))
             ? { ...item, quantity: item.quantity + 1 }
             : item
         );
       }
-      addToast(`Added ${product.title} to Cart!`, 'success');
+      addToast(`Added ${itemTitle} to Cart!`, 'success');
       return [...prev, { 
         product_id: product.id, 
-        title: product.title, 
-        price: product.price, 
+        variant_id: variant ? variant.id : null,
+        variant_info: variant,
+        title: itemTitle, 
+        price: itemPrice, 
         image_url: product.image_url,
         quantity: 1,
-        stock: product.stock
+        stock: itemStock
       }];
     });
   };
 
-  const updateQuantity = (productId, delta) => {
+  const updateQuantity = (productId, delta, variantId = null) => {
     setCart(prev => prev.map(item => {
-      if (item.product_id === productId) {
+      if (item.product_id === productId && item.variant_id === variantId) {
         const newQuantity = item.quantity + delta;
         if (newQuantity < 1) return item;
         if (newQuantity > item.stock) {
@@ -353,8 +503,8 @@ export default function StorefrontPage({ params }) {
     }));
   };
 
-  const removeFromCart = (productId) => {
-    setCart(prev => prev.filter(item => item.product_id !== productId));
+  const removeFromCart = (productId, variantId = null) => {
+    setCart(prev => prev.filter(item => !(item.product_id === productId && item.variant_id === variantId)));
     addToast('Item removed from cart', 'info');
   };
 
@@ -364,11 +514,15 @@ export default function StorefrontPage({ params }) {
     setPaymentLoading(true);
 
     try {
+      const token = localStorage.getItem(`customerToken_${tenant}`);
+      const headers = { 'Content-Type': 'application/json' };
+      if (token) headers['Authorization'] = `Bearer ${token}`;
+
       const orderRes = await fetch(`${API_URL}/api/orders?tenant=${tenant}`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers,
         body: JSON.stringify({
-          items: cart.map(item => ({ product_id: item.product_id, quantity: item.quantity }))
+          items: cart.map(item => ({ product_id: item.product_id, quantity: item.quantity, variant_id: item.variant_id }))
         })
       });
       const orderData = await orderRes.json();
@@ -484,9 +638,11 @@ export default function StorefrontPage({ params }) {
           <div className="flex items-center gap-3">
             <button 
               onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)} 
-              className="md:hidden p-2 text-[#a1a1aa] hover:text-white"
+              className="md:hidden p-2 text-[#a1a1aa] hover:text-white focus:outline-none focus:ring-2 focus:ring-[#db4444] rounded-lg"
+              aria-label={isMobileMenuOpen ? "Close mobile menu" : "Open mobile menu"}
+              aria-expanded={isMobileMenuOpen}
             >
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
             </button>
             <a href={`/${tenant}`} className="text-xl font-bold tracking-tight capitalize flex items-center gap-2">
               <span className="w-7 h-7 rounded-lg bg-[#db4444] text-white text-xs font-black flex items-center justify-center">
@@ -506,21 +662,36 @@ export default function StorefrontPage({ params }) {
               onKeyDown={handleSearchKeyDown}
               className="w-full bg-[#141418] border border-[#272734] rounded-lg pl-3.5 pr-9 py-1.5 text-xs text-white placeholder-[#a1a1aa] outline-none focus:border-[#db4444] transition-colors"
             />
-            <button onClick={scrollToProducts} className="absolute right-3 top-2.5 text-[#a1a1aa] hover:text-white transition-colors">
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+            <button 
+              onClick={scrollToProducts} 
+              className="absolute right-3 top-2.5 text-[#a1a1aa] hover:text-white transition-colors focus:outline-none focus:ring-2 focus:ring-[#db4444] rounded"
+              aria-label="Search products"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
             </button>
           </div>
 
-          {/* Nav Icons: Wishlist, Cart & Admin Link */}
+          {/* Nav Icons: Wishlist, Cart, Account & Admin Link */}
           <div className="flex items-center gap-3 sm:gap-4">
+            
+            {/* Account Button */}
+            <button 
+              onClick={() => customer ? setIsAccountModalOpen(true) : setIsAuthModalOpen(true)}
+              className="relative p-2 text-[#a1a1aa] hover:text-white hover:bg-[#141418] rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-[#db4444]"
+              aria-label="Account"
+              title={customer ? `Account (${customer.name})` : "Sign In"}
+            >
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+            </button>
             
             {/* Wishlist Button */}
             <button 
               onClick={() => setIsWishlistOpen(true)}
-              className="relative p-2 text-[#a1a1aa] hover:text-white hover:bg-[#141418] rounded-lg transition-colors"
+              className="relative p-2 text-[#a1a1aa] hover:text-white hover:bg-[#141418] rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-[#db4444]"
+              aria-label={`Wishlist, ${wishlistCount} items`}
               title="Wishlist"
             >
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
               {wishlistCount > 0 && (
                 <span className="absolute top-1 right-1 flex h-4 w-4 items-center justify-center rounded-full bg-[#db4444] text-[10px] font-bold text-white">
                   {wishlistCount}
@@ -531,10 +702,11 @@ export default function StorefrontPage({ params }) {
             {/* Cart Button */}
             <button 
               onClick={() => setIsCartOpen(true)}
-              className="relative p-2 text-[#a1a1aa] hover:text-white hover:bg-[#141418] rounded-lg transition-colors"
+              className="relative p-2 text-[#a1a1aa] hover:text-white hover:bg-[#141418] rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-[#db4444]"
+              aria-label={`Shopping Cart, ${cartItemsCount} items`}
               title="Shopping Cart"
             >
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg>
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg>
               {cartItemsCount > 0 && (
                 <span className="absolute top-1 right-1 flex h-4 w-4 items-center justify-center rounded-full bg-[#db4444] text-[10px] font-bold text-white">
                   {cartItemsCount}
@@ -879,16 +1051,25 @@ export default function StorefrontPage({ params }) {
                   <div key={product.id} className="group relative bg-[#141418] border border-[#272734] rounded-xl overflow-hidden flex flex-col">
                     <button 
                       onClick={() => toggleWishlist(product.id)}
-                      className={`absolute top-3 right-3 z-10 p-1.5 rounded-full border transition-all ${
+                      className={`absolute top-3 right-3 z-10 p-1.5 rounded-full border transition-all focus:outline-none focus:ring-2 focus:ring-[#db4444] ${
                         isWishlisted ? 'bg-[#db4444] border-[#db4444] text-white' : 'bg-[#09090b] border-[#272734] text-[#a1a1aa]'
                       }`}
+                      aria-label={isWishlisted ? "Remove from wishlist" : "Add to wishlist"}
+                      aria-pressed={isWishlisted}
                     >
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill={isWishlisted ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="2"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill={isWishlisted ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="2" aria-hidden="true"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
                     </button>
 
-                    <div onClick={() => openProductDetail(product)} className="aspect-square relative overflow-hidden bg-[#09090b] flex items-center justify-center cursor-pointer">
+                    <div 
+                      onClick={() => openProductDetail(product)} 
+                      onKeyDown={(e) => { if(e.key === 'Enter') openProductDetail(product); }}
+                      className="aspect-square relative overflow-hidden bg-[#09090b] flex items-center justify-center cursor-pointer focus:outline-none focus:ring-2 focus:ring-[#db4444]"
+                      tabIndex={0}
+                      role="button"
+                      aria-label={`View details for ${product.title}`}
+                    >
                       {product.image_url ? (
-                        <img src={product.image_url} alt={product.title} className="w-full h-full object-cover" />
+                        <Image src={product.image_url} alt={product.title} fill sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw" className="object-cover" />
                       ) : (
                         <div className="text-[#a1a1aa] text-[10px] font-mono">{product.category || 'Product'}</div>
                       )}
@@ -896,7 +1077,8 @@ export default function StorefrontPage({ params }) {
                         <button 
                           onClick={(e) => { e.stopPropagation(); addToCart(product); }}
                           disabled={product.stock === 0}
-                          className="w-full py-2 bg-[#db4444] hover:bg-[#e53838] text-white text-xs font-bold uppercase rounded disabled:opacity-50"
+                          className="w-full py-2 bg-[#db4444] hover:bg-[#e53838] text-white text-xs font-bold uppercase rounded disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-white"
+                          aria-label={`Add ${product.title} to cart`}
                         >
                           {product.stock > 0 ? 'Add To Cart' : 'Out of Stock'}
                         </button>
@@ -904,7 +1086,16 @@ export default function StorefrontPage({ params }) {
                     </div>
 
                     <div className="p-4 flex flex-col flex-1">
-                      <h3 className="text-xs sm:text-sm font-semibold text-white truncate mb-1 cursor-pointer" onClick={() => openProductDetail(product)}>{product.title}</h3>
+                      <h3 
+                        className="text-xs sm:text-sm font-semibold text-white truncate mb-1 cursor-pointer hover:text-[#db4444] transition-colors focus:outline-none focus:ring-2 focus:ring-[#db4444] rounded px-1 -mx-1" 
+                        onClick={() => openProductDetail(product)}
+                        onKeyDown={(e) => { if(e.key === 'Enter') openProductDetail(product); }}
+                        tabIndex={0}
+                        role="button"
+                        aria-label={`View details for ${product.title}`}
+                      >
+                        {product.title}
+                      </h3>
                       <div className="flex items-center justify-between mb-2">
                         <span className="text-xs sm:text-sm font-bold font-mono text-[#db4444]">{formatNaira(product.price)}</span>
                         <span className="text-[10px] text-[#a1a1aa] font-mono">{product.stock > 0 ? `${product.stock} left` : 'Sold out'}</span>
@@ -913,6 +1104,17 @@ export default function StorefrontPage({ params }) {
                   </div>
                 );
               })}
+            </div>
+          )}
+          {hasMore && !loading && (
+            <div className="flex justify-center mt-12">
+              <button 
+                onClick={loadMore} 
+                disabled={loadingMore} 
+                className="px-8 py-3 bg-[#141418] border border-[#272734] text-white text-sm font-bold uppercase tracking-wider rounded-lg hover:bg-[#272734] transition-colors disabled:opacity-50"
+              >
+                {loadingMore ? 'Loading...' : 'Load More Products'}
+              </button>
             </div>
           )}
         </section>
@@ -941,13 +1143,149 @@ export default function StorefrontPage({ params }) {
 
       </main>
 
+      {/* --- CUSTOMER AUTH MODAL --- */}
+      <AnimatePresence>
+        {isAuthModalOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="absolute inset-0 bg-black/80 backdrop-blur-md" onClick={() => setIsAuthModalOpen(false)}></motion.div>
+            <motion.div initial={{ opacity: 0, scale: 0.95, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: 20 }} className="relative bg-[#141418] border border-[#272734] rounded-2xl w-full max-w-md shadow-2xl overflow-hidden">
+              <div className="p-6 border-b border-[#272734] flex justify-between items-center">
+                <h2 className="text-xl font-bold text-white tracking-tight">{authMode === 'login' ? 'Welcome Back' : 'Create Account'}</h2>
+                <button onClick={() => setIsAuthModalOpen(false)} className="text-[#a1a1aa] hover:text-white p-2 rounded-lg hover:bg-[#272734] transition-colors"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+              </div>
+              <div className="p-6">
+                {authError && <div className="mb-4 p-3 bg-red-500/10 border border-red-500/50 rounded-lg text-red-400 text-sm text-center">{authError}</div>}
+                
+                <form onSubmit={handleAuthSubmit} className="space-y-4">
+                  {authMode === 'register' && (
+                    <>
+                      <div>
+                        <label className="block text-xs font-semibold text-[#a1a1aa] uppercase tracking-wider mb-1.5">Full Name</label>
+                        <input required type="text" value={authForm.name} onChange={e => setAuthForm({...authForm, name: e.target.value})} className="w-full bg-[#09090b] border border-[#272734] rounded-xl px-4 py-3 text-white focus:outline-none focus:border-[#db4444] transition-colors" placeholder="John Doe" />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-semibold text-[#a1a1aa] uppercase tracking-wider mb-1.5">Phone</label>
+                        <input type="text" value={authForm.phone} onChange={e => setAuthForm({...authForm, phone: e.target.value})} className="w-full bg-[#09090b] border border-[#272734] rounded-xl px-4 py-3 text-white focus:outline-none focus:border-[#db4444] transition-colors" placeholder="+1234567890" />
+                      </div>
+                    </>
+                  )}
+                  <div>
+                    <label className="block text-xs font-semibold text-[#a1a1aa] uppercase tracking-wider mb-1.5">Email Address</label>
+                    <input required type="email" value={authForm.email} onChange={e => setAuthForm({...authForm, email: e.target.value})} className="w-full bg-[#09090b] border border-[#272734] rounded-xl px-4 py-3 text-white focus:outline-none focus:border-[#db4444] transition-colors" placeholder="you@example.com" />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-[#a1a1aa] uppercase tracking-wider mb-1.5">Password</label>
+                    <input required type="password" value={authForm.password} onChange={e => setAuthForm({...authForm, password: e.target.value})} className="w-full bg-[#09090b] border border-[#272734] rounded-xl px-4 py-3 text-white focus:outline-none focus:border-[#db4444] transition-colors" placeholder="••••••••" />
+                  </div>
+                  
+                  <button type="submit" disabled={authLoading} className="w-full bg-[#db4444] hover:bg-[#b93838] text-white font-bold py-3.5 px-4 rounded-xl transition-all disabled:opacity-50 mt-4">
+                    {authLoading ? 'Please wait...' : (authMode === 'login' ? 'Sign In' : 'Create Account')}
+                  </button>
+                </form>
+                
+                <div className="mt-6 text-center text-sm text-[#a1a1aa]">
+                  {authMode === 'login' ? "Don't have an account? " : "Already have an account? "}
+                  <button type="button" onClick={() => { setAuthMode(authMode === 'login' ? 'register' : 'login'); setAuthError(''); }} className="text-[#db4444] hover:text-[#b93838] font-bold">
+                    {authMode === 'login' ? 'Sign up' : 'Log in'}
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* --- CUSTOMER ACCOUNT & ORDERS DRAWER --- */}
+      <AnimatePresence>
+        {isAccountModalOpen && customer && (
+          <>
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-black/70 backdrop-blur-sm z-40" onClick={() => setIsAccountModalOpen(false)}></motion.div>
+            <motion.div initial={{ x: '100%' }} animate={{ x: 0 }} exit={{ x: '100%' }} transition={{ type: 'spring', damping: 25, stiffness: 200 }} className="fixed inset-y-0 right-0 w-full md:w-[450px] bg-[#09090b] border-l border-[#272734] z-50 flex flex-col shadow-2xl">
+              <div className="flex items-center justify-between p-6 border-b border-[#272734] bg-[#141418]">
+                <h2 className="text-xl font-bold tracking-tight text-white flex items-center gap-3">
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                  My Account
+                </h2>
+                <button onClick={() => setIsAccountModalOpen(false)} className="p-2 text-[#a1a1aa] hover:text-white hover:bg-[#272734] rounded-lg transition-colors"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+              </div>
+
+              <div className="flex-1 overflow-y-auto p-6 scrollbar-thin scrollbar-thumb-[#272734] scrollbar-track-transparent space-y-8">
+                <div>
+                  <h3 className="text-[#a1a1aa] text-xs font-bold uppercase tracking-wider mb-4">Profile Details</h3>
+                  <div className="bg-[#141418] border border-[#272734] rounded-xl p-4 flex justify-between items-center">
+                    <div>
+                      <p className="font-bold text-white text-lg">{customer.name || customer.email.split('@')[0]}</p>
+                      <p className="text-sm text-[#a1a1aa]">{customer.email}</p>
+                    </div>
+                    <button onClick={logoutCustomer} className="text-sm px-3 py-1.5 border border-[#272734] rounded-lg text-white hover:bg-[#db4444] hover:border-[#db4444] transition-colors">Sign Out</button>
+                  </div>
+                </div>
+
+                <div>
+                  <h3 className="text-[#a1a1aa] text-xs font-bold uppercase tracking-wider mb-4">Order History</h3>
+                  {customerOrders.length === 0 ? (
+                    <div className="text-center py-12 bg-[#141418] border border-[#272734] rounded-xl border-dashed">
+                      <svg className="w-12 h-12 mx-auto text-[#272734] mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"/></svg>
+                      <p className="text-[#a1a1aa]">You haven't placed any orders yet.</p>
+                      <button onClick={() => setIsAccountModalOpen(false)} className="mt-4 text-[#db4444] hover:text-[#b93838] font-bold text-sm">Start Shopping &rarr;</button>
+                    </div>
+                  ) : (
+                    <div className="space-y-4">
+                      {customerOrders.map(order => (
+                        <div key={order.id} className="bg-[#141418] border border-[#272734] rounded-xl overflow-hidden">
+                          <div className="p-4 border-b border-[#272734] bg-[#1a1a20] flex justify-between items-start">
+                            <div>
+                              <p className="text-xs text-[#a1a1aa] font-mono mb-1">#{order.id.slice(0,8).toUpperCase()}</p>
+                              <p className="text-sm font-medium text-white">{new Date(order.created_at).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })}</p>
+                            </div>
+                            <div className="text-right">
+                              <span className={`inline-block px-2 py-1 rounded text-xs font-bold uppercase tracking-wider ${
+                                order.status === 'delivered' ? 'bg-green-500/10 text-green-400' : 
+                                order.status === 'cancelled' ? 'bg-red-500/10 text-red-400' :
+                                'bg-yellow-500/10 text-yellow-400'
+                              }`}>
+                                {order.status}
+                              </span>
+                              <p className="text-sm font-bold text-white mt-1">₦{Number(order.total_amount).toLocaleString()}</p>
+                            </div>
+                          </div>
+                          <div className="p-4 space-y-3">
+                            {order.items.map((item, idx) => (
+                              <div key={idx} className="flex justify-between items-center text-sm">
+                                <div className="flex items-center gap-3">
+                                  <div className="w-10 h-10 bg-[#09090b] rounded-lg border border-[#272734] flex items-center justify-center text-[#a1a1aa] overflow-hidden">
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+                                  </div>
+                                  <div>
+                                    <p className="text-white">Product #{item.product_id}</p>
+                                    {item.variant_info && <p className="text-xs text-[#a1a1aa]">{item.variant_info.name}: {item.variant_info.value}</p>}
+                                  </div>
+                                </div>
+                                <div className="text-right">
+                                  <p className="text-[#a1a1aa]">x{item.quantity}</p>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
+
       {/* CART DRAWER */}
-      {isCartOpen && (
-        <div className="fixed inset-0 z-50 flex justify-end">
-          <div className="fixed inset-0 bg-black/70 backdrop-blur-sm" onClick={() => setIsCartOpen(false)}></div>
-          
-          <div className="relative w-full max-w-md bg-[#141418] border-l border-[#272734] h-full flex flex-col z-10">
-            <div className="p-5 border-b border-[#272734] flex items-center justify-between">
+      <AnimatePresence>
+        {isCartOpen && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-50 flex justify-end">
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-black/70 backdrop-blur-sm" onClick={() => setIsCartOpen(false)}></motion.div>
+            
+            <motion.div initial={{ x: '100%' }} animate={{ x: 0 }} exit={{ x: '100%' }} transition={{ type: 'spring', damping: 25, stiffness: 200 }} className="relative w-full max-w-md bg-[#141418] border-l border-[#272734] h-full flex flex-col z-10 shadow-2xl">
+              <div className="p-5 border-b border-[#272734] flex items-center justify-between">
               <div>
                 <h3 className="text-base font-bold text-white">Your Cart</h3>
                 <p className="text-xs text-[#a1a1aa] font-mono">{cartItemsCount} item(s)</p>
@@ -959,25 +1297,28 @@ export default function StorefrontPage({ params }) {
               {cart.length === 0 ? (
                 <div className="text-center py-12 text-[#a1a1aa]">Cart is empty</div>
               ) : (
-                cart.map(item => (
-                  <div key={item.product_id} className="relative flex items-center justify-between gap-3 p-3 bg-[#09090b] border border-[#272734] rounded-xl">
+                cart.map((item, idx) => (
+                  <div key={`${item.product_id}-${item.variant_id || 'base'}-${idx}`} className="relative flex items-center justify-between gap-3 p-3 bg-[#09090b] border border-[#272734] rounded-xl">
                     <button 
-                      onClick={() => removeFromCart(item.product_id)} 
+                      onClick={() => removeFromCart(item.product_id, item.variant_id)} 
                       className="absolute top-2 right-2 text-[#a1a1aa] hover:text-[#db4444] transition-colors"
                       title="Remove item"
                     >
                       ✕
                     </button>
-                    <div className="w-12 h-12 rounded-lg bg-[#141418] border border-[#272734] overflow-hidden">
-                      {item.image_url && <img src={item.image_url} alt={item.title} className="w-full h-full object-cover" />}
+                    <div className="w-12 h-12 rounded-lg bg-[#141418] border border-[#272734] overflow-hidden relative">
+                      {item.image_url && <Image src={item.image_url} alt={item.title} fill sizes="48px" className="object-cover" />}
                     </div>
-                    <div className="flex-1 min-w-0">
+                    <div className="flex-1 min-w-0 pr-4">
                       <h4 className="text-xs font-semibold text-white truncate">{item.title}</h4>
-                      <span className="text-xs font-mono text-[#db4444]">{formatNaira(item.price)}</span>
+                      {item.variant_info && (
+                        <p className="text-[10px] text-[#a1a1aa]">{item.variant_info.name}: {item.variant_info.value}</p>
+                      )}
+                      <span className="text-xs font-mono text-[#db4444] block mt-0.5">{formatNaira(item.price)}</span>
                       <div className="flex items-center gap-2 mt-2">
-                        <button onClick={() => updateQuantity(item.product_id, -1)} className="px-2 bg-[#272734] rounded text-xs">-</button>
+                        <button onClick={() => updateQuantity(item.product_id, -1, item.variant_id)} className="px-2 bg-[#272734] rounded text-xs">-</button>
                         <span className="text-xs">{item.quantity}</span>
-                        <button onClick={() => updateQuantity(item.product_id, 1)} className="px-2 bg-[#272734] rounded text-xs">+</button>
+                        <button onClick={() => updateQuantity(item.product_id, 1, item.variant_id)} className="px-2 bg-[#272734] rounded text-xs">+</button>
                       </div>
                     </div>
                   </div>
@@ -1007,17 +1348,19 @@ export default function StorefrontPage({ params }) {
                 </div>
               </div>
             )}
-          </div>
-        </div>
-      )}
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* WISHLIST DRAWER */}
-      {isWishlistOpen && (
-        <div className="fixed inset-0 z-50 flex justify-end">
-          <div className="fixed inset-0 bg-black/70 backdrop-blur-sm" onClick={() => setIsWishlistOpen(false)}></div>
-          
-          <div className="relative w-full max-w-md bg-[#141418] border-l border-[#272734] h-full flex flex-col z-10 shadow-2xl animate-in slide-in-from-right duration-300">
-            <div className="p-5 border-b border-[#272734] flex items-center justify-between">
+      <AnimatePresence>
+        {isWishlistOpen && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-50 flex justify-end">
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-black/70 backdrop-blur-sm" onClick={() => setIsWishlistOpen(false)}></motion.div>
+            
+            <motion.div initial={{ x: '100%' }} animate={{ x: 0 }} exit={{ x: '100%' }} transition={{ type: 'spring', damping: 25, stiffness: 200 }} className="relative w-full max-w-md bg-[#141418] border-l border-[#272734] h-full flex flex-col z-10 shadow-2xl">
+              <div className="p-5 border-b border-[#272734] flex items-center justify-between">
               <div>
                 <h3 className="text-base font-bold text-white">Your Wishlist</h3>
                 <p className="text-xs text-[#a1a1aa] font-mono">{wishlistCount} item(s) saved</p>
@@ -1036,9 +1379,9 @@ export default function StorefrontPage({ params }) {
               ) : (
                 products.filter(p => wishlist.includes(p.id)).map(product => (
                   <div key={product.id} className="flex items-center justify-between gap-3 p-3 bg-[#181824] border border-[#272734] rounded-xl">
-                    <div className="w-12 h-12 rounded-lg bg-[#09090b] overflow-hidden border border-[#272734] flex items-center justify-center">
+                    <div className="w-12 h-12 rounded-lg bg-[#09090b] overflow-hidden border border-[#272734] flex items-center justify-center relative">
                       {product.image_url ? (
-                        <img src={product.image_url} alt={product.title} className="w-full h-full object-cover" />
+                        <Image src={product.image_url} alt={product.title} fill sizes="48px" className="object-cover" />
                       ) : (
                         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-[#a1a1aa]"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>
                       )}
@@ -1059,9 +1402,10 @@ export default function StorefrontPage({ params }) {
                 ))
               )}
             </div>
-          </div>
-        </div>
-      )}
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* STRIPE PAYMENT CONFIRMATION MODAL (DEMO / SCAFFOLDING MODE) */}
       {isPaymentModalOpen && paymentSuccess && (
@@ -1105,27 +1449,28 @@ export default function StorefrontPage({ params }) {
       )}
 
       {/* PRODUCT DETAIL MODAL (Gallery & Detailed Description) */}
-      {selectedDetailProduct && (() => {
-        let parsedImages = [];
-        try {
-          parsedImages = typeof selectedDetailProduct.images === 'string' 
-            ? JSON.parse(selectedDetailProduct.images) 
-            : (selectedDetailProduct.images || []);
-        } catch (e) {
-          parsedImages = [];
-        }
-        const gallery = [selectedDetailProduct.image_url, ...(Array.isArray(parsedImages) ? parsedImages : [])].filter(Boolean);
-        const mainImg = activeDetailImage || gallery[0];
-        const isWishlisted = wishlist.includes(selectedDetailProduct.id);
-        const originalPrice = selectedDetailProduct.original_price || (Number(selectedDetailProduct.price) * 1.25);
-        const calculatedPercent = Math.round(((originalPrice - selectedDetailProduct.price) / originalPrice) * 100);
-        const discountPercent = selectedDetailProduct.discount_percent || (calculatedPercent > 0 ? calculatedPercent : 20);
+      <AnimatePresence>
+        {selectedDetailProduct && (() => {
+          let parsedImages = [];
+          try {
+            parsedImages = typeof selectedDetailProduct.images === 'string' 
+              ? JSON.parse(selectedDetailProduct.images) 
+              : (selectedDetailProduct.images || []);
+          } catch (e) {
+            parsedImages = [];
+          }
+          const gallery = [selectedDetailProduct.image_url, ...(Array.isArray(parsedImages) ? parsedImages : [])].filter(Boolean);
+          const mainImg = activeDetailImage || gallery[0];
+          const isWishlisted = wishlist.includes(selectedDetailProduct.id);
+          const originalPrice = selectedDetailProduct.original_price || (Number(selectedDetailProduct.price) * 1.25);
+          const calculatedPercent = Math.round(((originalPrice - selectedDetailProduct.price) / originalPrice) * 100);
+          const discountPercent = selectedDetailProduct.discount_percent || (calculatedPercent > 0 ? calculatedPercent : 20);
 
-        return (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-            <div className="fixed inset-0 bg-black/80 backdrop-blur-sm" onClick={() => setSelectedDetailProduct(null)}></div>
-            
-            <div className="relative bg-[#141418] border border-[#272734] rounded-2xl p-6 sm:p-8 max-w-3xl w-full z-10 shadow-2xl animate-in zoom-in-95 duration-200 max-h-[90vh] overflow-y-auto">
+          return (
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-50 flex items-center justify-center p-4">
+              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-black/80 backdrop-blur-sm" onClick={() => setSelectedDetailProduct(null)}></motion.div>
+              
+              <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }} transition={{ type: 'spring', damping: 25, stiffness: 200 }} className="relative bg-[#141418] border border-[#272734] rounded-2xl p-6 sm:p-8 max-w-3xl w-full z-10 shadow-2xl max-h-[90vh] overflow-y-auto">
               <button 
                 onClick={() => setSelectedDetailProduct(null)} 
                 className="absolute top-4 right-4 p-2 text-[#a1a1aa] hover:text-white transition-colors"
@@ -1136,9 +1481,9 @@ export default function StorefrontPage({ params }) {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6 sm:gap-8">
                 {/* Image Gallery Column */}
                 <div className="space-y-3">
-                  <div className="aspect-square bg-[#181824] border border-[#272734] rounded-xl overflow-hidden flex items-center justify-center p-4">
+                  <div className="aspect-square bg-[#181824] border border-[#272734] rounded-xl overflow-hidden flex items-center justify-center p-4 relative">
                     {mainImg ? (
-                      <img src={mainImg} alt={selectedDetailProduct.title} className="w-full h-full object-cover rounded-lg" />
+                      <Image src={mainImg} alt={selectedDetailProduct.title} fill sizes="(max-width: 768px) 100vw, 50vw" className="object-cover rounded-lg" />
                     ) : (
                       <div className="text-[#a1a1aa] text-xs">No Image Preview</div>
                     )}
@@ -1151,11 +1496,11 @@ export default function StorefrontPage({ params }) {
                         <button
                           key={i}
                           onClick={() => setActiveDetailImage(imgUrl)}
-                          className={`w-14 h-14 rounded-lg overflow-hidden border-2 transition-all flex-shrink-0 bg-[#09090b] ${
+                          className={`w-14 h-14 rounded-lg overflow-hidden border-2 transition-all flex-shrink-0 bg-[#09090b] relative ${
                             mainImg === imgUrl ? 'border-[#db4444] scale-95' : 'border-[#272734] opacity-70 hover:opacity-100'
                           }`}
                         >
-                          <img src={imgUrl} alt="Thumbnail" className="w-full h-full object-cover" />
+                          <Image src={imgUrl} alt="Thumbnail" fill sizes="56px" className="object-cover" />
                         </button>
                       ))}
                     </div>
@@ -1210,14 +1555,38 @@ export default function StorefrontPage({ params }) {
                     </div>
                   </div>
 
+                  {/* Variants */}
+                  {selectedDetailProduct.variants && selectedDetailProduct.variants.length > 0 && (
+                    <div className="mt-4 pt-4 border-t border-[#272734]">
+                      <h4 className="text-xs font-bold uppercase tracking-wider text-[#a1a1aa] mb-3">Available Options</h4>
+                      <div className="flex flex-wrap gap-2">
+                        {selectedDetailProduct.variants.map((v, i) => {
+                          const isSelected = selectedVariant?.id === v.id;
+                          const variantPriceStr = Number(v.price_adjustment) > 0 ? ` (+${formatNaira(Number(v.price_adjustment))})` : '';
+                          return (
+                            <button
+                              key={v.id || i}
+                              onClick={() => setSelectedVariant(v)}
+                              className={`px-3 py-2 text-xs font-semibold rounded-lg border transition-all ${
+                                isSelected ? 'bg-[#db4444] border-[#db4444] text-white' : 'bg-[#181824] border-[#272734] text-[#a1a1aa] hover:border-[#db4444] hover:text-white'
+                              }`}
+                            >
+                              {v.name}: {v.value} {variantPriceStr}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+
                   {/* Actions */}
                   <div className="pt-4 border-t border-[#272734] flex items-center gap-3">
                     <button
-                      onClick={() => { addToCart(selectedDetailProduct); }}
-                      disabled={selectedDetailProduct.stock === 0}
+                      onClick={() => { addToCart(selectedDetailProduct, selectedVariant); }}
+                      disabled={(selectedVariant ? selectedVariant.stock : selectedDetailProduct.stock) === 0}
                       className="press flex-1 py-3 bg-[#db4444] hover:bg-[#e53838] text-white font-bold text-xs uppercase tracking-wider rounded-lg shadow-sm transition-all disabled:opacity-50"
                     >
-                      {selectedDetailProduct.stock > 0 ? 'Add To Cart' : 'Out of Stock'}
+                      {(selectedVariant ? selectedVariant.stock : selectedDetailProduct.stock) > 0 ? 'Add To Cart' : 'Out of Stock'}
                     </button>
 
                     <button
@@ -1233,18 +1602,20 @@ export default function StorefrontPage({ params }) {
                   </div>
                 </div>
               </div>
-            </div>
-          </div>
+            </motion.div>
+          </motion.div>
         );
       })()}
+      </AnimatePresence>
 
       {/* CUSTOMER PRODUCT REVIEWS MODAL */}
-      {reviewProduct && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="fixed inset-0 bg-black/80 backdrop-blur-sm" onClick={() => setReviewProduct(null)}></div>
-          
-          <div className="relative bg-[#141418] border border-[#272734] rounded-2xl p-6 sm:p-8 max-w-lg w-full z-10 shadow-2xl space-y-5 animate-in zoom-in-95 duration-200 max-h-[90vh] flex flex-col">
-            <div className="flex items-center justify-between border-b border-[#272734] pb-4">
+      <AnimatePresence>
+        {reviewProduct && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-black/80 backdrop-blur-sm" onClick={() => setReviewProduct(null)}></motion.div>
+            
+            <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }} transition={{ type: 'spring', damping: 25, stiffness: 200 }} className="relative bg-[#141418] border border-[#272734] rounded-2xl p-6 sm:p-8 max-w-lg w-full z-10 shadow-2xl space-y-5 max-h-[90vh] flex flex-col">
+              <div className="flex items-center justify-between border-b border-[#272734] pb-4">
               <div>
                 <h3 className="text-base font-extrabold text-white">{reviewProduct.title}</h3>
                 <div className="flex items-center gap-2 text-xs text-[#a1a1aa]">
@@ -1331,22 +1702,28 @@ export default function StorefrontPage({ params }) {
                 ))
               )}
             </div>
-          </div>
-        </div>
-      )}
+          </motion.div>
+        </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Toast Notifications */}
       <div className="fixed bottom-6 right-6 z-50 flex flex-col gap-2 pointer-events-none">
-        {toasts.map(toast => (
-          <div 
-            key={toast.id}
-            className={`px-4 py-3 bg-[#141418] border text-xs font-semibold rounded-lg shadow-2xl pointer-events-auto border-l-4 ${
-              toast.type === 'error' ? 'border-l-red-500 text-red-400 border-[#272734]' : 'border-l-[#db4444] text-white border-[#272734]'
-            } animate-in slide-in-from-bottom-5 duration-300`}
-          >
-            {toast.message}
-          </div>
-        ))}
+        <AnimatePresence>
+          {toasts.map(toast => (
+            <motion.div 
+              key={toast.id}
+              initial={{ opacity: 0, y: 50, scale: 0.3 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.5, transition: { duration: 0.2 } }}
+              className={`px-4 py-3 bg-[#141418] border text-xs font-semibold rounded-lg shadow-2xl pointer-events-auto border-l-4 ${
+                toast.type === 'error' ? 'border-l-red-500 text-red-400 border-[#272734]' : 'border-l-[#db4444] text-white border-[#272734]'
+              }`}
+            >
+              {toast.message}
+            </motion.div>
+          ))}
+        </AnimatePresence>
       </div>
 
       {/* Footer */}

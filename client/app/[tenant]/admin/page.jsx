@@ -2,6 +2,9 @@
 
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
+import Image from 'next/image';
+import { motion, AnimatePresence } from 'framer-motion';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
 export default function AdminDashboard() {
   const params = useParams();
@@ -12,9 +15,15 @@ export default function AdminDashboard() {
   
   // Dashboard state
   const [products, setProducts] = useState([]);
+  const [productsPage, setProductsPage] = useState(1);
+  const [productsTotalPages, setProductsTotalPages] = useState(1);
+
   const [orders, setOrders] = useState([]);
+  const [ordersPage, setOrdersPage] = useState(1);
+  const [ordersTotalPages, setOrdersTotalPages] = useState(1);
+
   const [categories, setCategories] = useState([]);
-  const [stats, setStats] = useState({ revenue: 0, totalOrders: 0, activeProducts: 0 });
+  const [stats, setStats] = useState({ revenue: 0, totalOrders: 0, activeProducts: 0, chartData: [], topProducts: [], lowStock: [] });
   const [dataLoading, setDataLoading] = useState(true);
 
   // Login state
@@ -38,7 +47,8 @@ export default function AdminDashboard() {
     is_new_arrival: false,
     discount_percent: '20',
     flash_sale_units: '10',
-    images: []
+    images: [],
+    variants: []
   });
   const [uploadingImage, setUploadingImage] = useState(false);
   const [productSubmitLoading, setProductSubmitLoading] = useState(false);
@@ -47,10 +57,13 @@ export default function AdminDashboard() {
   const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
   const [editingCategory, setEditingCategory] = useState(null); // null if creating
   const [newCatName, setNewCatName] = useState('');
-  const [newCatIcon, setNewCatIcon] = useState('📦');
+  const [newCatIcon, setNewCatIcon] = useState('');
 
   // Toasts
   const [toasts, setToasts] = useState([]);
+
+  // Confirm Modal state
+  const [confirmModal, setConfirmModal] = useState({ isOpen: false, type: '', id: null, title: '' });
 
   const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://my-ecommerce-backend-uwkx.onrender.com';
 
@@ -67,9 +80,15 @@ export default function AdminDashboard() {
 
   useEffect(() => {
     if (token && tenantSlug) {
-      fetchDashboardData();
+      fetchProducts(productsPage);
     }
-  }, [token, tenantSlug]);
+  }, [productsPage]);
+
+  useEffect(() => {
+    if (token && tenantSlug) {
+      fetchOrders(ordersPage);
+    }
+  }, [ordersPage]);
 
   const addToast = (message, type = 'success') => {
     const id = Date.now() + '-' + Math.random().toString(36).substr(2, 9);
@@ -119,29 +138,63 @@ export default function AdminDashboard() {
     return response.json();
   };
 
+  const fetchProducts = async (page = productsPage) => {
+    try {
+      const res = await authFetch(`/api/products?tenant=${tenantSlug}&page=${page}&limit=10`);
+      const data = res.data?.products || res.products || [];
+      const pagination = res.data?.pagination || res.pagination;
+      setProducts(data);
+      if (pagination) {
+        setProductsTotalPages(pagination.totalPages);
+      }
+      return data;
+    } catch (error) {
+      console.error('Error fetching products:', error);
+    }
+  };
+
+  const fetchOrders = async (page = ordersPage) => {
+    try {
+      const res = await authFetch(`/api/orders?tenant=${tenantSlug}&page=${page}&limit=10`);
+      const data = Array.isArray(res.data) ? res.data : (res.data?.orders || res.orders || []);
+      const pagination = res.data?.pagination || res.pagination;
+      setOrders(data);
+      if (pagination) {
+        setOrdersTotalPages(pagination.totalPages);
+      }
+      return data;
+    } catch (error) {
+      console.error('Error fetching orders:', error);
+    }
+  };
+
   const fetchDashboardData = async () => {
     setDataLoading(true);
     try {
-      const [productsRes, ordersRes] = await Promise.all([
-        authFetch(`/api/products?tenant=${tenantSlug}`),
-        authFetch(`/api/orders?tenant=${tenantSlug}`)
+      // First fetch categories and stats
+      const [productsRes, statsData] = await Promise.all([
+        authFetch(`/api/products?tenant=${tenantSlug}`), // For categories
+        authFetch(`/api/admin/stats?tenant=${tenantSlug}`)
       ]);
 
-      const productsData = productsRes.data?.products || productsRes.products || [];
-      const ordersData = Array.isArray(ordersRes.data) ? ordersRes.data : (ordersRes.data?.orders || ordersRes.orders || []);
       const categoriesData = productsRes.data?.categories || [];
-
-      setProducts(productsData);
-      setOrders(ordersData);
       setCategories(categoriesData);
 
-      const statsRes = await authFetch(`/api/admin/stats?tenant=${tenantSlug}`);
-      const statsData = typeof statsRes.json === 'function' ? await statsRes.json() : statsRes;
+      // Fetch paginated products and orders
+      await Promise.all([
+        fetchProducts(productsPage),
+        fetchOrders(ordersPage)
+      ]);
 
+      // Bug Fix #3: authFetch already returns parsed JSON, no need for .json() again
+      // Also fix field name: server returns 'revenue', not 'totalRevenue'
       setStats({
-        revenue: statsData.data.totalRevenue,
-        totalOrders: statsData.data.totalOrders,
-        activeProducts: statsData.data.totalProducts,
+        revenue: statsData.data?.revenue ?? 0,
+        totalOrders: statsData.data?.totalOrders ?? 0,
+        activeProducts: statsData.data?.totalProducts ?? 0,
+        chartData: statsData.data?.chartData ?? [],
+        topProducts: statsData.data?.topProducts ?? [],
+        lowStock: statsData.data?.lowStock ?? []
       });
 
     } catch (error) {
@@ -166,9 +219,15 @@ export default function AdminDashboard() {
 
       const data = await res.json();
       const jwtToken = data.data?.token || data.token;
+      const returnedSlug = data.data?.tenantSlug || data.tenantSlug;
       
       if (!res.ok || !jwtToken) {
         throw new Error(data.error || data.message || 'Login failed');
+      }
+
+      // Bug Fix #4: Verify the logged-in user actually owns THIS store
+      if (returnedSlug && returnedSlug !== tenantSlug) {
+        throw new Error('This account does not own this store.');
       }
 
       localStorage.setItem(`admin_token_${tenantSlug}`, jwtToken);
@@ -289,7 +348,8 @@ export default function AdminDashboard() {
         is_new_arrival: productForm.is_new_arrival,
         discount_percent: parseInt(productForm.discount_percent, 10) || 20,
         flash_sale_units: parseInt(productForm.flash_sale_units, 10) || parseInt(productForm.stock, 10),
-        images: productForm.images
+        images: productForm.images,
+        variants: productForm.variants
       };
 
       const res = await authFetch(url, {
@@ -312,28 +372,18 @@ export default function AdminDashboard() {
   };
 
   const handleDeleteProduct = async (id) => {
-    if (!confirm('Are you sure you want to delete this product?')) return;
-    
-    try {
-      await authFetch(`/api/products/${id}?tenant=${tenantSlug}`, {
-        method: 'DELETE'
-      });
-      addToast('Product deleted');
-      fetchDashboardData();
-    } catch (error) {
-      addToast('Error deleting product', 'error');
-    }
+    setConfirmModal({ isOpen: true, type: 'product', id, title: 'Delete Product' });
   };
 
   const openCategoryModal = (category = null) => {
     if (category) {
       setEditingCategory(category);
       setNewCatName(category.name);
-      setNewCatIcon(category.icon || '📦');
+      setNewCatIcon(category.icon || '');
     } else {
       setEditingCategory(null);
       setNewCatName('');
-      setNewCatIcon('📦');
+      setNewCatIcon('');
     }
     setIsCategoryModalOpen(true);
   };
@@ -369,16 +419,29 @@ export default function AdminDashboard() {
   };
 
   const handleDeleteCategory = async (catId) => {
-    if (!confirm('Are you sure you want to delete this category?')) return;
-    try {
-      await authFetch(`/api/categories/${catId}?tenant=${tenantSlug}`, {
-        method: 'DELETE'
-      });
-      addToast('Category deleted');
-      fetchDashboardData();
-    } catch (err) {
-      addToast('Error deleting category', 'error');
+    setConfirmModal({ isOpen: true, type: 'category', id: catId, title: 'Delete Category' });
+  };
+
+  const executeDelete = async () => {
+    const { type, id } = confirmModal;
+    if (type === 'product') {
+      try {
+        await authFetch(`/api/products/${id}?tenant=${tenantSlug}`, { method: 'DELETE' });
+        addToast('Product deleted');
+        fetchDashboardData();
+      } catch (error) {
+        addToast('Error deleting product', 'error');
+      }
+    } else if (type === 'category') {
+      try {
+        await authFetch(`/api/categories/${id}?tenant=${tenantSlug}`, { method: 'DELETE' });
+        addToast('Category deleted');
+        fetchDashboardData();
+      } catch (err) {
+        addToast('Error deleting category', 'error');
+      }
     }
+    setConfirmModal({ isOpen: false, type: '', id: null, title: '' });
   };
 
   const handleUpdateOrderStatus = async (id, newStatus) => {
@@ -548,6 +611,78 @@ export default function AdminDashboard() {
           </div>
         </div>
 
+        {/* Advanced Analytics */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-8">
+          <div className="lg:col-span-2 p-6 border border-[#272734] rounded-xl bg-[#141418]">
+            <h3 className="text-sm font-bold uppercase tracking-wider text-[#a1a1aa] mb-6">Revenue Trends (Last 7 Days)</h3>
+            {dataLoading ? (
+              <div className="skeleton h-64 w-full rounded-lg"></div>
+            ) : stats.chartData?.length > 0 ? (
+              <div className="h-64 w-full">
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={stats.chartData} margin={{ top: 5, right: 20, bottom: 5, left: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#272734" vertical={false} />
+                    <XAxis dataKey="date" stroke="#a1a1aa" fontSize={12} tickFormatter={(tick) => new Date(tick).toLocaleDateString()} />
+                    <YAxis stroke="#a1a1aa" fontSize={12} tickFormatter={(tick) => `₦${tick.toLocaleString()}`} />
+                    <Tooltip 
+                      contentStyle={{ backgroundColor: '#141418', borderColor: '#272734', color: '#fff' }}
+                      labelFormatter={(label) => new Date(label).toLocaleDateString()}
+                      formatter={(value) => [formatNaira(value), 'Revenue']}
+                    />
+                    <Line type="monotone" dataKey="revenue" stroke="#db4444" strokeWidth={2} activeDot={{ r: 8 }} />
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
+            ) : (
+              <div className="h-64 w-full flex items-center justify-center text-[#a1a1aa] text-sm">
+                No revenue data available for the last 7 days.
+              </div>
+            )}
+          </div>
+
+          <div className="space-y-6">
+            <div className="p-6 border border-[#272734] rounded-xl bg-[#141418]">
+              <h3 className="text-sm font-bold uppercase tracking-wider text-[#a1a1aa] mb-4">Top Performing Products</h3>
+              {dataLoading ? (
+                <div className="space-y-3">
+                  {[...Array(3)].map((_, i) => <div key={i} className="skeleton h-10 w-full rounded"></div>)}
+                </div>
+              ) : stats.topProducts?.length > 0 ? (
+                <ul className="space-y-3">
+                  {stats.topProducts.map(tp => (
+                    <li key={tp.id} className="flex justify-between items-center text-sm">
+                      <span className="text-white truncate pr-2">{tp.title}</span>
+                      <span className="text-[#a1a1aa] font-mono whitespace-nowrap">{tp.total_sold} sold</span>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="text-[#a1a1aa] text-xs">No sales data yet.</p>
+              )}
+            </div>
+
+            <div className="p-6 border border-[#272734] rounded-xl bg-[#141418]">
+              <h3 className="text-sm font-bold uppercase tracking-wider text-[#a1a1aa] mb-4">Low Stock Alerts</h3>
+              {dataLoading ? (
+                <div className="space-y-3">
+                  {[...Array(2)].map((_, i) => <div key={i} className="skeleton h-10 w-full rounded"></div>)}
+                </div>
+              ) : stats.lowStock?.length > 0 ? (
+                <ul className="space-y-3">
+                  {stats.lowStock.map(ls => (
+                    <li key={ls.id} className="flex justify-between items-center text-sm">
+                      <span className="text-white truncate pr-2">{ls.title}</span>
+                      <span className="text-[#db4444] font-mono font-bold whitespace-nowrap">{ls.stock} left</span>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="text-[#a1a1aa] text-xs">All products are well stocked.</p>
+              )}
+            </div>
+          </div>
+        </div>
+
         {/* Catalog & Orders Grid */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
           
@@ -588,7 +723,7 @@ export default function AdminDashboard() {
                     <div key={product.id} className="p-4 flex items-center justify-between gap-3 hover:bg-[#1c1c24] transition-colors">
                       <div className="flex items-center gap-3 min-w-0">
                         {product.image_url ? (
-                          <img src={product.image_url} alt={product.title} className="w-11 h-11 rounded-lg object-cover border border-[#272734]" />
+                          <Image src={product.image_url} alt={product.title} width={44} height={44} className="w-11 h-11 rounded-lg object-cover border border-[#272734]" />
                         ) : (
                           <div className="w-11 h-11 rounded-lg bg-[#09090b] border border-[#272734] flex items-center justify-center text-xs text-[#a1a1aa]">Img</div>
                         )}
@@ -627,6 +762,26 @@ export default function AdminDashboard() {
                   ))}
                 </div>
               )}
+              
+              {productsTotalPages > 1 && (
+                <div className="p-4 border-t border-[#272734] flex items-center justify-between bg-[#09090b]">
+                  <button
+                    disabled={productsPage === 1}
+                    onClick={() => setProductsPage(p => Math.max(1, p - 1))}
+                    className="text-xs font-semibold text-white px-3 py-1.5 bg-[#272734] hover:bg-[#333342] rounded disabled:opacity-50 transition-colors"
+                  >
+                    Previous
+                  </button>
+                  <span className="text-xs font-semibold text-[#a1a1aa]">Page {productsPage} of {productsTotalPages}</span>
+                  <button
+                    disabled={productsPage === productsTotalPages}
+                    onClick={() => setProductsPage(p => Math.min(productsTotalPages, p + 1))}
+                    className="text-xs font-semibold text-white px-3 py-1.5 bg-[#272734] hover:bg-[#333342] rounded disabled:opacity-50 transition-colors"
+                  >
+                    Next
+                  </button>
+                </div>
+              )}
             </div>
           </section>
 
@@ -646,12 +801,18 @@ export default function AdminDashboard() {
               {categories.map(cat => (
                 <div key={cat.id} className="p-3 bg-[#141418] border border-[#272734] rounded-xl flex items-center justify-between hover:border-[#db4444]/50 transition-colors">
                   <div className="flex items-center gap-2 min-w-0">
-                    <span className="text-lg">{cat.icon || '📦'}</span>
+                    <span className="text-[#a1a1aa]">
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"></path><line x1="7" y1="7" x2="7.01" y2="7"></line></svg>
+                    </span>
                     <span className="text-xs font-semibold text-white truncate">{cat.name}</span>
                   </div>
                   <div className="flex items-center gap-1">
-                    <button onClick={() => openCategoryModal(cat)} className="p-1 text-[#a1a1aa] hover:text-white text-xs">✏️</button>
-                    <button onClick={() => handleDeleteCategory(cat.id)} className="p-1 text-red-400 hover:text-red-300 text-xs">🗑️</button>
+                    <button onClick={() => openCategoryModal(cat)} className="p-1.5 text-[#a1a1aa] hover:text-white text-xs">
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"></path></svg>
+                    </button>
+                    <button onClick={() => handleDeleteCategory(cat.id)} className="p-1.5 text-red-400 hover:text-red-300 text-xs">
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+                    </button>
                   </div>
                 </div>
               ))}
@@ -697,6 +858,26 @@ export default function AdminDashboard() {
                       </div>
                     </div>
                   ))}
+                </div>
+              )}
+
+              {ordersTotalPages > 1 && (
+                <div className="p-4 border-t border-[#272734] flex items-center justify-between bg-[#09090b]">
+                  <button
+                    disabled={ordersPage === 1}
+                    onClick={() => setOrdersPage(p => Math.max(1, p - 1))}
+                    className="text-xs font-semibold text-white px-3 py-1.5 bg-[#272734] hover:bg-[#333342] rounded disabled:opacity-50 transition-colors"
+                  >
+                    Previous
+                  </button>
+                  <span className="text-xs font-semibold text-[#a1a1aa]">Page {ordersPage} of {ordersTotalPages}</span>
+                  <button
+                    disabled={ordersPage === ordersTotalPages}
+                    onClick={() => setOrdersPage(p => Math.min(ordersTotalPages, p + 1))}
+                    className="text-xs font-semibold text-white px-3 py-1.5 bg-[#272734] hover:bg-[#333342] rounded disabled:opacity-50 transition-colors"
+                  >
+                    Next
+                  </button>
                 </div>
               )}
             </div>
@@ -834,7 +1015,7 @@ export default function AdminDashboard() {
                   <div className="grid grid-cols-4 gap-2 mt-2">
                     {productForm.images.map((imgUrl, idx) => (
                       <div key={idx} className="relative group rounded-lg overflow-hidden border border-[#272734] aspect-square bg-[#09090b]">
-                        <img src={imgUrl} alt="Gallery" className="w-full h-full object-cover" />
+                        <Image src={imgUrl} alt="Gallery" fill className="object-cover" />
                         <button
                           type="button"
                           onClick={() => setProductForm(prev => ({ ...prev, images: prev.images.filter((_, i) => i !== idx) }))}
@@ -846,6 +1027,90 @@ export default function AdminDashboard() {
                     ))}
                   </div>
                 )}
+              {/* PRODUCT VARIANTS */}
+              <div className="p-3 bg-[#181824] border border-[#272734] rounded-lg space-y-3">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-semibold uppercase tracking-wider text-[#a1a1aa]">Product Variants</label>
+                  <button
+                    type="button"
+                    onClick={() => setProductForm(prev => ({ 
+                      ...prev, 
+                      variants: [...(prev.variants || []), { name: 'Size', value: '', stock: 0, price_adjustment: 0 }] 
+                    }))}
+                    className="text-[11px] font-bold text-[#db4444] hover:underline"
+                  >
+                    + Add Variant
+                  </button>
+                </div>
+                {(productForm.variants || []).map((v, idx) => (
+                  <div key={idx} className="grid grid-cols-[1fr_1fr_60px_1fr] gap-2 items-end">
+                    <div>
+                      <label className="text-[10px] text-[#a1a1aa] mb-1 block">Type (e.g. Size)</label>
+                      <input 
+                        type="text" 
+                        value={v.name} 
+                        onChange={(e) => {
+                          const newV = [...productForm.variants];
+                          newV[idx].name = e.target.value;
+                          setProductForm({...productForm, variants: newV});
+                        }}
+                        className="w-full px-2 py-1.5 bg-[#09090b] border border-[#272734] rounded text-xs text-white outline-none focus:border-[#db4444]" 
+                      />
+                    </div>
+                    <div>
+                      <label className="text-[10px] text-[#a1a1aa] mb-1 block">Value (e.g. XL)</label>
+                      <input 
+                        type="text" 
+                        value={v.value} 
+                        required
+                        onChange={(e) => {
+                          const newV = [...productForm.variants];
+                          newV[idx].value = e.target.value;
+                          setProductForm({...productForm, variants: newV});
+                        }}
+                        className="w-full px-2 py-1.5 bg-[#09090b] border border-[#272734] rounded text-xs text-white outline-none focus:border-[#db4444]" 
+                      />
+                    </div>
+                    <div>
+                      <label className="text-[10px] text-[#a1a1aa] mb-1 block">Stock</label>
+                      <input 
+                        type="number" 
+                        value={v.stock} 
+                        onChange={(e) => {
+                          const newV = [...productForm.variants];
+                          newV[idx].stock = e.target.value;
+                          setProductForm({...productForm, variants: newV});
+                        }}
+                        className="w-full px-2 py-1.5 bg-[#09090b] border border-[#272734] rounded text-xs text-white outline-none focus:border-[#db4444]" 
+                      />
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <div className="flex-1">
+                        <label className="text-[10px] text-[#a1a1aa] mb-1 block">Price Adj. (₦)</label>
+                        <input 
+                          type="number" 
+                          value={v.price_adjustment} 
+                          onChange={(e) => {
+                            const newV = [...productForm.variants];
+                            newV[idx].price_adjustment = e.target.value;
+                            setProductForm({...productForm, variants: newV});
+                          }}
+                          className="w-full px-2 py-1.5 bg-[#09090b] border border-[#272734] rounded text-xs text-white outline-none focus:border-[#db4444]" 
+                        />
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const newV = [...productForm.variants];
+                          newV.splice(idx, 1);
+                          setProductForm({...productForm, variants: newV});
+                        }}
+                        className="text-red-500 hover:text-red-400 pb-1 px-1"
+                      >✕</button>
+                    </div>
+                  </div>
+                ))}
+              </div>
               </div>
               <div>
                 <label className="text-xs font-semibold uppercase tracking-wider text-[#a1a1aa] mb-1 block">
@@ -874,7 +1139,7 @@ export default function AdminDashboard() {
 
                 {productForm.image_url && (
                   <div className="mt-2 flex items-center gap-3 p-2 bg-[#09090b] border border-[#272734] rounded-lg">
-                    <img src={productForm.image_url} alt="Preview" className="w-12 h-12 object-cover rounded" />
+                    <Image src={productForm.image_url} alt="Preview" width={48} height={48} className="w-12 h-12 object-cover rounded" />
                     <span className="text-[11px] text-[#a1a1aa] truncate flex-1">{productForm.image_url}</span>
                     <button type="button" onClick={() => setProductForm({ ...productForm, image_url: '' })} className="text-xs text-red-400">Remove</button>
                   </div>
@@ -981,13 +1246,13 @@ export default function AdminDashboard() {
                 />
               </div>
               <div>
-                <label className="text-xs text-[#a1a1aa] block mb-1">Category Icon / Emoji</label>
+                <label className="text-xs text-[#a1a1aa] block mb-1">Category Icon (Optional)</label>
                 <input
                   type="text"
                   value={newCatIcon}
                   onChange={e => setNewCatIcon(e.target.value)}
                   className="w-full px-3 py-2 bg-[#09090b] border border-[#272734] rounded-lg text-sm text-white outline-none focus:border-[#db4444]"
-                  placeholder="👟"
+                  placeholder="tag"
                 />
               </div>
               <div className="flex justify-end gap-2 pt-2">
@@ -998,6 +1263,38 @@ export default function AdminDashboard() {
           </div>
         </div>
       )}
+
+      {/* CONFIRM MODAL */}
+      <AnimatePresence>
+        {confirmModal.isOpen && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-black/80 backdrop-blur-sm" onClick={() => setConfirmModal({ isOpen: false, type: '', id: null, title: '' })}></motion.div>
+            
+            <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }} className="relative bg-[#141418] border border-[#272734] rounded-2xl p-6 w-full max-w-sm z-10 shadow-2xl text-center">
+              <div className="w-12 h-12 rounded-full bg-red-500/10 text-red-500 flex items-center justify-center mx-auto mb-4">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+              </div>
+              <h3 className="text-lg font-bold text-white mb-2">{confirmModal.title}</h3>
+              <p className="text-xs text-[#a1a1aa] mb-6">Are you sure you want to proceed? This action cannot be undone.</p>
+              
+              <div className="flex items-center gap-3 w-full">
+                <button 
+                  onClick={() => setConfirmModal({ isOpen: false, type: '', id: null, title: '' })} 
+                  className="flex-1 py-2 bg-[#09090b] border border-[#272734] hover:bg-[#181824] text-white text-xs font-semibold rounded-lg transition-colors"
+                >
+                  Cancel
+                </button>
+                <button 
+                  onClick={executeDelete} 
+                  className="flex-1 py-2 bg-[#db4444] hover:bg-[#e53838] text-white text-xs font-semibold rounded-lg transition-colors"
+                >
+                  Confirm Delete
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Toast Notifications */}
       <div className="fixed bottom-6 right-6 z-50 flex flex-col gap-2">
