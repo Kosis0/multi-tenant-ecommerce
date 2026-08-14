@@ -744,7 +744,10 @@ export default function StorefrontPage({ params }) {
                           (p.category && p.category.toLowerCase().includes(searchQuery.toLowerCase()));
     const matchesPrice = Number(p.price) <= priceRange;
     const matchesRating = minRating === 0 || (Number(p.rating || 4.5) >= minRating);
-    return matchesCategory && matchesSearch && matchesPrice && matchesRating;
+    const matchesSize = selectedSize === 'All' || 
+      (p.variants && p.variants.some(v => v.value?.toLowerCase() === selectedSize.toLowerCase())) ||
+      (!p.variants || p.variants.length === 0);
+    return matchesCategory && matchesSearch && matchesPrice && matchesRating && matchesSize;
   });
 
   const cartItemsCount = cart.reduce((acc, item) => acc + item.quantity, 0);

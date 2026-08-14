@@ -84,72 +84,57 @@ export default function LandingPage() {
           </Link>
         </div>
 
-        {/* Interactive Storefront Preview Mockup Card */}
-        <div className="w-full max-w-5xl rounded-3xl border border-[var(--card-border)] bg-[var(--surface)] p-3 sm:p-6 shadow-2xl relative overflow-hidden group">
-          <div className="flex items-center justify-between pb-4 mb-4 border-b border-[var(--border)] px-2">
-            <div className="flex items-center gap-2">
-              <span className="w-3 h-3 rounded-full bg-red-400/80"></span>
-              <span className="w-3 h-3 rounded-full bg-amber-400/80"></span>
-              <span className="w-3 h-3 rounded-full bg-emerald-400/80"></span>
-              <span className="text-[11px] font-mono text-[var(--muted)] ml-3 hidden sm:inline">mercato.com/demo</span>
+        {/* Platform Architecture & Live Ecosystem Showcase */}
+        <div className="w-full max-w-5xl rounded-3xl border border-[var(--card-border)] bg-[var(--card)] p-6 sm:p-10 shadow-2xl relative overflow-hidden">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between pb-6 mb-8 border-b border-[var(--border)] gap-4">
+            <div className="text-left">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--accent-dark)] block">Platform Architecture</span>
+              <h3 className="font-editorial text-2xl font-semibold text-[var(--foreground)] mt-1">Multi-Tenant Merchant Ecosystem</h3>
             </div>
             <div className="flex items-center gap-2">
-              <span className="text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-full bg-[var(--accent-clay)] text-[var(--accent-dark)]">
-                Live Isolated Tenant
-              </span>
+              <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-ping"></span>
+              <span className="text-xs font-mono font-bold text-emerald-600 dark:text-emerald-400">100% Isolated Tenants</span>
             </div>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-left">
-            <div className="p-4 rounded-2xl bg-[var(--card-clay)] border border-[var(--border)] space-y-2">
-              <span className="text-[10px] uppercase font-bold tracking-wider text-[var(--muted)]">Active Listing</span>
-              <div className="relative aspect-4/3 rounded-xl overflow-hidden bg-[var(--surface)]">
-                <Image 
-                  src="https://images.unsplash.com/photo-1542291026-7eec264c27ff?auto=format&fit=crop&w=600&q=80" 
-                  alt="Sneakers" 
-                  fill 
-                  className="object-cover" 
-                />
-                <span className="absolute top-2 left-2 text-[9px] font-bold px-2 py-0.5 rounded-full bg-[var(--surface)] text-[var(--foreground)] border border-[var(--border)]">
-                  -25% OFF
-                </span>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 text-left">
+            <div className="p-6 rounded-2xl bg-[var(--card-clay)] border border-[var(--border)] space-y-3">
+              <div className="w-10 h-10 rounded-xl bg-[var(--surface)] border border-[var(--border)] text-[var(--accent-dark)] flex items-center justify-center font-bold text-sm">
+                01
               </div>
-              <div className="font-editorial text-sm font-semibold text-[var(--foreground)]">Clay Knit Runner</div>
-              <div className="font-mono text-xs font-bold text-[var(--accent-dark)]">₦48,500</div>
+              <h4 className="font-editorial text-lg font-semibold text-[var(--foreground)]">Instant Store Generation</h4>
+              <p className="text-xs text-[var(--muted)] leading-relaxed">
+                Create a new brand slug in seconds. The platform automatically provisions customer authentication, inventory models, and order registries.
+              </p>
+              <div className="text-[11px] font-mono text-[var(--accent-dark)] font-bold">
+                mercato.com/[your-brand]
+              </div>
             </div>
 
-            <div className="p-4 rounded-2xl bg-[var(--card-clay)] border border-[var(--border)] space-y-2">
-              <span className="text-[10px] uppercase font-bold tracking-wider text-[var(--muted)]">Editorial Apparel</span>
-              <div className="relative aspect-4/3 rounded-xl overflow-hidden bg-[var(--surface)]">
-                <Image 
-                  src="https://images.unsplash.com/photo-1556905055-8f358a7a47b2?auto=format&fit=crop&w=600&q=80" 
-                  alt="Hoodie" 
-                  fill 
-                  className="object-cover" 
-                />
-                <span className="absolute top-2 left-2 text-[9px] font-bold px-2 py-0.5 rounded-full bg-[var(--surface)] text-[var(--foreground)] border border-[var(--border)]">
-                  Hot Deal
-                </span>
+            <div className="p-6 rounded-2xl bg-[var(--card-clay)] border border-[var(--border)] space-y-3">
+              <div className="w-10 h-10 rounded-xl bg-[var(--surface)] border border-[var(--border)] text-[var(--accent-dark)] flex items-center justify-center font-bold text-sm">
+                02
               </div>
-              <div className="font-editorial text-sm font-semibold text-[var(--foreground)]">Terracotta Hoodie</div>
-              <div className="font-mono text-xs font-bold text-[var(--accent-dark)]">₦32,000</div>
+              <h4 className="font-editorial text-lg font-semibold text-[var(--foreground)]">Clay Shop UI & Themes</h4>
+              <p className="text-xs text-[var(--muted)] leading-relaxed">
+                Full-featured luxury storefront equipped with responsive category filters, real-time price sliders, size selectors, and dual dark/light themes.
+              </p>
+              <div className="text-[11px] font-mono text-[var(--accent-dark)] font-bold">
+                Tailored for Mobile & Desktop
+              </div>
             </div>
 
-            <div className="p-4 rounded-2xl bg-[var(--card-clay)] border border-[var(--border)] space-y-2">
-              <span className="text-[10px] uppercase font-bold tracking-wider text-[var(--muted)]">Leather Craft</span>
-              <div className="relative aspect-4/3 rounded-xl overflow-hidden bg-[var(--surface)]">
-                <Image 
-                  src="https://images.unsplash.com/photo-1548036328-c9fa89d128fa?auto=format&fit=crop&w=600&q=80" 
-                  alt="Tote" 
-                  fill 
-                  className="object-cover" 
-                />
-                <span className="absolute top-2 left-2 text-[9px] font-bold px-2 py-0.5 rounded-full bg-[var(--surface)] text-[var(--foreground)] border border-[var(--border)]">
-                  New
-                </span>
+            <div className="p-6 rounded-2xl bg-[var(--card-clay)] border border-[var(--border)] space-y-3">
+              <div className="w-10 h-10 rounded-xl bg-[var(--surface)] border border-[var(--border)] text-[var(--accent-dark)] flex items-center justify-center font-bold text-sm">
+                03
               </div>
-              <div className="font-editorial text-sm font-semibold text-[var(--foreground)]">Architectural Leather Tote</div>
-              <div className="font-mono text-xs font-bold text-[var(--accent-dark)]">₦68,000</div>
+              <h4 className="font-editorial text-lg font-semibold text-[var(--foreground)]">Merchant Admin Engine</h4>
+              <p className="text-xs text-[var(--muted)] leading-relaxed">
+                Dedicated administration dashboard per tenant with revenue charts, low-stock warnings, multi-variant managers, and order fulfillment.
+              </p>
+              <div className="text-[11px] font-mono text-[var(--accent-dark)] font-bold">
+                Naira (₦) & Multi-Currency Ready
+              </div>
             </div>
           </div>
         </div>
