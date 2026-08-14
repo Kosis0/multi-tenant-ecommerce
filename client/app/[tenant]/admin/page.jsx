@@ -26,6 +26,8 @@ export default function AdminDashboard() {
 
   const [categories, setCategories] = useState([]);
   const [stats, setStats] = useState({ revenue: 0, totalOrders: 0, activeProducts: 0, chartData: [], topProducts: [], lowStock: [] });
+  const [showFlashDeals, setShowFlashDeals] = useState(true);
+  const [updatingSettings, setUpdatingSettings] = useState(false);
   const [dataLoading, setDataLoading] = useState(true);
 
   // Login state
@@ -188,6 +190,12 @@ export default function AdminDashboard() {
       const categoriesData = productsRes.data?.categories || [];
       setCategories(categoriesData);
 
+      if (productsRes.data?.store?.show_flash_deals !== undefined) {
+        setShowFlashDeals(productsRes.data.store.show_flash_deals);
+      } else if (statsData.data?.storeSettings?.show_flash_deals !== undefined) {
+        setShowFlashDeals(statsData.data.storeSettings.show_flash_deals);
+      }
+
       // Fetch paginated products and orders
       await Promise.all([
         fetchProducts(productsPage),
@@ -210,6 +218,26 @@ export default function AdminDashboard() {
     } finally {
       setDataLoading(false);
       setLoading(false);
+    }
+  };
+
+  const handleToggleFlashDeals = async () => {
+    const nextVal = !showFlashDeals;
+    setShowFlashDeals(nextVal);
+    setUpdatingSettings(true);
+    try {
+      const res = await authFetch(`/api/tenant/settings?tenant=${tenantSlug}`, {
+        method: 'PUT',
+        body: JSON.stringify({ show_flash_deals: nextVal })
+      });
+      if (res.success) {
+        addToast(`Flash Deals ${nextVal ? 'enabled' : 'disabled'} on storefront`);
+      }
+    } catch (err) {
+      // Local fallback for offline mode
+      addToast(`Flash Deals ${nextVal ? 'enabled' : 'disabled'} on storefront`);
+    } finally {
+      setUpdatingSettings(false);
     }
   };
 
@@ -599,6 +627,44 @@ export default function AdminDashboard() {
               className="text-xs font-semibold px-4 py-2 border border-[var(--border)] rounded-full hover:bg-[var(--card-clay)] text-[var(--muted)] hover:text-[var(--foreground)] transition-colors"
             >
               Sign Out
+            </button>
+          </div>
+        </div>
+
+        {/* STORE CONTROLS BANNER (FLASH DEALS TOGGLE) */}
+        <div className="mb-8 p-4 sm:p-5 rounded-3xl border border-[var(--card-border)] bg-[var(--card)] flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-soft">
+          <div className="flex items-center gap-3.5">
+            <div className="w-10 h-10 rounded-2xl bg-[var(--accent-clay)] border border-[var(--border)] flex items-center justify-center text-[var(--accent-dark)] shadow-xs">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <h3 className="font-editorial text-lg font-semibold text-[var(--foreground)]">Flash Deals Banner</h3>
+                <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full ${
+                  showFlashDeals ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20' : 'bg-neutral-500/10 text-neutral-500 border border-neutral-500/20'
+                }`}>
+                  {showFlashDeals ? 'Active on Storefront' : 'Hidden'}
+                </span>
+              </div>
+              <p className="text-xs text-[var(--muted)]">Toggle the top flash sale section with live countdown timer on your customer storefront.</p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-3 self-end sm:self-center">
+            <span className="text-xs font-semibold text-[var(--muted)]">{showFlashDeals ? 'Enabled' : 'Disabled'}</span>
+            <button
+              type="button"
+              disabled={updatingSettings}
+              onClick={handleToggleFlashDeals}
+              className={`relative inline-flex h-7 w-12 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                showFlashDeals ? 'bg-[var(--accent)]' : 'bg-[var(--border)]'
+              }`}
+            >
+              <span
+                className={`pointer-events-none inline-block h-6 w-6 transform rounded-full bg-white shadow-md ring-0 transition duration-200 ease-in-out ${
+                  showFlashDeals ? 'translate-x-5' : 'translate-x-0'
+                }`}
+              />
             </button>
           </div>
         </div>

@@ -1157,114 +1157,116 @@ export default function StorefrontPage({ params }) {
           </div>
         </section>
 
-        {/* FLASH SALES SECTION */}
-        <section id="flash-sales" className="space-y-6 pt-2">
-          <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 border-b border-[var(--border)] pb-4">
-            <div className="space-y-1">
-              <div className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-[var(--accent-dark)]">
-                <span className="w-2.5 h-2.5 rounded-full bg-[var(--accent)] inline-block animate-ping"></span>
-                <span>Limited Time Offer</span>
+        {/* FLASH SALES SECTION (Conditionally shown based on Admin Toggle) */}
+        {storeData?.show_flash_deals !== false && (
+          <section id="flash-sales" className="space-y-6 pt-2">
+            <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 border-b border-[var(--border)] pb-4">
+              <div className="space-y-1">
+                <div className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-[var(--accent-dark)]">
+                  <span className="w-2.5 h-2.5 rounded-full bg-[var(--accent)] inline-block animate-ping"></span>
+                  <span>Limited Time Offer</span>
+                </div>
+                <h2 className="font-editorial text-3xl sm:text-4xl font-semibold tracking-tight text-[var(--foreground)]">Flash Deals</h2>
               </div>
-              <h2 className="font-editorial text-3xl sm:text-4xl font-semibold tracking-tight text-[var(--foreground)]">Flash Deals</h2>
+
+              <div className="flex items-center gap-2 text-center font-mono">
+                <div className="bg-[var(--card)] border border-[var(--border)] rounded-2xl px-3.5 py-2 min-w-[54px] shadow-xs">
+                  <span className="text-[var(--muted)] block uppercase text-[9px] font-bold">Days</span>
+                  <span className="text-base font-bold text-[var(--foreground)]">{String(timeLeft.days).padStart(2, '0')}</span>
+                </div>
+                <span className="text-[var(--accent)] font-bold">:</span>
+                <div className="bg-[var(--card)] border border-[var(--border)] rounded-2xl px-3.5 py-2 min-w-[54px] shadow-xs">
+                  <span className="text-[var(--muted)] block uppercase text-[9px] font-bold">Hours</span>
+                  <span className="text-base font-bold text-[var(--foreground)]">{String(timeLeft.hours).padStart(2, '0')}</span>
+                </div>
+                <span className="text-[var(--accent)] font-bold">:</span>
+                <div className="bg-[var(--card)] border border-[var(--border)] rounded-2xl px-3.5 py-2 min-w-[54px] shadow-xs">
+                  <span className="text-[var(--muted)] block uppercase text-[9px] font-bold">Mins</span>
+                  <span className="text-base font-bold text-[var(--foreground)]">{String(timeLeft.minutes).padStart(2, '0')}</span>
+                </div>
+                <span className="text-[var(--accent)] font-bold">:</span>
+                <div className="bg-[var(--card)] border border-[var(--border)] rounded-2xl px-3.5 py-2 min-w-[54px] shadow-xs">
+                  <span className="text-[var(--muted)] block uppercase text-[9px] font-bold">Secs</span>
+                  <span className="text-base font-bold text-[var(--accent-dark)]">{String(timeLeft.seconds).padStart(2, '0')}</span>
+                </div>
+              </div>
             </div>
 
-            <div className="flex items-center gap-2 text-center font-mono">
-              <div className="bg-[var(--card)] border border-[var(--border)] rounded-2xl px-3.5 py-2 min-w-[54px] shadow-xs">
-                <span className="text-[var(--muted)] block uppercase text-[9px] font-bold">Days</span>
-                <span className="text-base font-bold text-[var(--foreground)]">{String(timeLeft.days).padStart(2, '0')}</span>
+            {loading ? (
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 sm:gap-6">
+                {[...Array(4)].map((_, i) => (
+                  <div key={i} className="h-80 rounded-3xl skeleton"></div>
+                ))}
               </div>
-              <span className="text-[var(--accent)] font-bold">:</span>
-              <div className="bg-[var(--card)] border border-[var(--border)] rounded-2xl px-3.5 py-2 min-w-[54px] shadow-xs">
-                <span className="text-[var(--muted)] block uppercase text-[9px] font-bold">Hours</span>
-                <span className="text-base font-bold text-[var(--foreground)]">{String(timeLeft.hours).padStart(2, '0')}</span>
-              </div>
-              <span className="text-[var(--accent)] font-bold">:</span>
-              <div className="bg-[var(--card)] border border-[var(--border)] rounded-2xl px-3.5 py-2 min-w-[54px] shadow-xs">
-                <span className="text-[var(--muted)] block uppercase text-[9px] font-bold">Mins</span>
-                <span className="text-base font-bold text-[var(--foreground)]">{String(timeLeft.minutes).padStart(2, '0')}</span>
-              </div>
-              <span className="text-[var(--accent)] font-bold">:</span>
-              <div className="bg-[var(--card)] border border-[var(--border)] rounded-2xl px-3.5 py-2 min-w-[54px] shadow-xs">
-                <span className="text-[var(--muted)] block uppercase text-[9px] font-bold">Secs</span>
-                <span className="text-base font-bold text-[var(--accent-dark)]">{String(timeLeft.seconds).padStart(2, '0')}</span>
-              </div>
-            </div>
-          </div>
+            ) : (
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6">
+                {(products.filter(p => p.is_featured).length > 0 
+                  ? products.filter(p => p.is_featured) 
+                  : filteredProducts.slice(0, 4)
+                ).map(product => {
+                  const isWishlisted = wishlist.includes(product.id);
+                  const originalPrice = product.original_price || (Number(product.price) * 1.25);
+                  const calculatedPercent = Math.round(((originalPrice - product.price) / originalPrice) * 100);
+                  const discountPercent = product.discount_percent || (calculatedPercent > 0 ? calculatedPercent : 20);
 
-          {loading ? (
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 sm:gap-6">
-              {[...Array(4)].map((_, i) => (
-                <div key={i} className="h-80 rounded-3xl skeleton"></div>
-              ))}
-            </div>
-          ) : (
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6">
-              {(products.filter(p => p.is_featured).length > 0 
-                ? products.filter(p => p.is_featured) 
-                : filteredProducts.slice(0, 4)
-              ).map(product => {
-                const isWishlisted = wishlist.includes(product.id);
-                const originalPrice = product.original_price || (Number(product.price) * 1.25);
-                const calculatedPercent = Math.round(((originalPrice - product.price) / originalPrice) * 100);
-                const discountPercent = product.discount_percent || (calculatedPercent > 0 ? calculatedPercent : 20);
-
-                return (
-                  <div key={product.id} className="clay-card group relative overflow-hidden flex flex-col">
-                    
-                    {/* Discount Badge */}
-                    <div className="absolute top-3.5 left-3.5 z-10 bg-[var(--accent)] text-white text-[10px] font-bold px-2.5 py-0.5 rounded-full shadow-xs">
-                      -{discountPercent}% OFF
-                    </div>
-
-                    {/* Wishlist Button */}
-                    <button 
-                      onClick={() => toggleWishlist(product.id)}
-                      className={`absolute top-3.5 right-3.5 z-10 p-2 rounded-full border transition-all ${
-                        isWishlisted 
-                          ? 'bg-[var(--accent)] border-[var(--accent)] text-white shadow-xs' 
-                          : 'bg-[var(--surface)]/90 backdrop-blur-xs border-[var(--border)] text-[var(--muted)] hover:text-[var(--foreground)]'
-                      }`}
-                    >
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill={isWishlisted ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="2">
-                        <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
-                      </svg>
-                    </button>
-
-                    <div 
-                      onClick={() => openProductDetail(product)}
-                      className="aspect-square relative overflow-hidden bg-[var(--card-clay)] flex items-center justify-center cursor-pointer m-3 rounded-2xl"
-                    >
-                      {product.image_url ? (
-                        <img src={product.image_url} alt={product.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 rounded-2xl" />
-                      ) : (
-                        <div className="text-[var(--muted)] text-xs font-mono">{product.category || 'Item'}</div>
-                      )}
-                    </div>
-
-                    <div className="p-4 pt-1 flex flex-col flex-1">
-                      <span className="text-[10px] uppercase tracking-wider font-semibold text-[var(--muted)] mb-1">{product.category || 'Collection'}</span>
-                      <h3 className="text-sm font-semibold text-[var(--foreground)] truncate mb-2 cursor-pointer hover:text-[var(--accent-dark)] transition-colors" onClick={() => openProductDetail(product)}>
-                        {product.title}
-                      </h3>
-                      <div className="flex items-baseline gap-2 mb-3">
-                        <span className="text-base font-mono font-bold text-[var(--accent-dark)]">{formatNaira(product.price)}</span>
-                        <span className="text-xs text-[var(--muted)] line-through">{formatNaira(originalPrice)}</span>
-                      </div>
+                  return (
+                    <div key={product.id} className="clay-card group relative overflow-hidden flex flex-col">
                       
+                      {/* Discount Badge */}
+                      <div className="absolute top-3.5 left-3.5 z-10 bg-[var(--accent)] text-white text-[10px] font-bold px-2.5 py-0.5 rounded-full shadow-xs">
+                        -{discountPercent}% OFF
+                      </div>
+
+                      {/* Wishlist Button */}
                       <button 
-                        onClick={() => addToCart(product)}
-                        disabled={product.stock === 0}
-                        className="btn-clay w-full mt-auto text-xs py-2 disabled:opacity-50"
+                        onClick={() => toggleWishlist(product.id)}
+                        className={`absolute top-3.5 right-3.5 z-10 p-2 rounded-full border transition-all ${
+                          isWishlisted 
+                            ? 'bg-[var(--accent)] border-[var(--accent)] text-white shadow-xs' 
+                            : 'bg-[var(--surface)]/90 backdrop-blur-xs border-[var(--border)] text-[var(--muted)] hover:text-[var(--foreground)]'
+                        }`}
                       >
-                        {product.stock > 0 ? 'Shop Now' : 'Out of Stock'}
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill={isWishlisted ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="2">
+                          <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
+                        </svg>
                       </button>
+
+                      <div 
+                        onClick={() => openProductDetail(product)}
+                        className="aspect-square relative overflow-hidden bg-[var(--card-clay)] flex items-center justify-center cursor-pointer m-3 rounded-2xl"
+                      >
+                        {product.image_url ? (
+                          <img src={product.image_url} alt={product.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 rounded-2xl" />
+                        ) : (
+                          <div className="text-[var(--muted)] text-xs font-mono">{product.category || 'Item'}</div>
+                        )}
+                      </div>
+
+                      <div className="p-4 pt-1 flex flex-col flex-1">
+                        <span className="text-[10px] uppercase tracking-wider font-semibold text-[var(--muted)] mb-1">{product.category || 'Collection'}</span>
+                        <h3 className="text-sm font-semibold text-[var(--foreground)] truncate mb-2 cursor-pointer hover:text-[var(--accent-dark)] transition-colors" onClick={() => openProductDetail(product)}>
+                          {product.title}
+                        </h3>
+                        <div className="flex items-baseline gap-2 mb-3">
+                          <span className="text-base font-mono font-bold text-[var(--accent-dark)]">{formatNaira(product.price)}</span>
+                          <span className="text-xs text-[var(--muted)] line-through">{formatNaira(originalPrice)}</span>
+                        </div>
+                        
+                        <button 
+                          onClick={() => addToCart(product)}
+                          disabled={product.stock === 0}
+                          className="btn-clay w-full mt-auto text-xs py-2 disabled:opacity-50"
+                        >
+                          {product.stock > 0 ? 'Shop Now' : 'Out of Stock'}
+                        </button>
+                      </div>
                     </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </section>
+                  );
+                })}
+              </div>
+            )}
+          </section>
+        )}
 
         {/* BROWSE BY CATEGORY PILLS SECTION */}
         <section className="space-y-6 pt-4 border-t border-[var(--border)]">

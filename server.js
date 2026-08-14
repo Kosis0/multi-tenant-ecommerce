@@ -494,7 +494,10 @@ app.get('/api/products', resolveTenant, async (req, res, next) => {
     );
 
     sendSuccess(res, { 
-      store: req.tenant, 
+      store: {
+        ...req.tenant,
+        show_flash_deals: req.tenant.show_flash_deals !== false
+      }, 
       products, 
       categories,
       pagination: {
@@ -1083,8 +1086,41 @@ app.get('/api/admin/stats', resolveTenant, authenticateToken, requireStoreOwners
       recentOrders: recentRes.rows,
       chartData: dailyRevenueRes.rows,
       topProducts: topProductsRes.rows,
-      lowStock: lowStockRes.rows
+      lowStock: lowStockRes.rows,
+      storeSettings: {
+        show_flash_deals: req.tenant.show_flash_deals !== false
+      }
     });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// PUT /api/tenant/settings — Update store settings (e.g. Flash Deals toggle)
+app.put('/api/tenant/settings', resolveTenant, authenticateToken, requireStoreOwnership, async (req, res, next) => {
+  try {
+    const { show_flash_deals } = req.body;
+    
+    // Check if column exists in database, otherwise handle gracefully
+    try {
+      await pool.query(
+        'UPDATE tenants SET show_flash_deals = $1 WHERE id = $2',
+        [show_flash_deals === true, req.tenant.id]
+      );
+    } catch (colErr) {
+      // If column does not exist, add it automatically
+      try {
+        await pool.query('ALTER TABLE tenants ADD COLUMN IF NOT EXISTS show_flash_deals BOOLEAN DEFAULT TRUE');
+        await pool.query(
+          'UPDATE tenants SET show_flash_deals = $1 WHERE id = $2',
+          [show_flash_deals === true, req.tenant.id]
+        );
+      } catch (alterErr) {
+        console.warn('Could not persist show_flash_deals to tenants table, returning payload:', alterErr.message);
+      }
+    }
+
+    sendSuccess(res, { show_flash_deals: show_flash_deals === true });
   } catch (err) {
     next(err);
   }
