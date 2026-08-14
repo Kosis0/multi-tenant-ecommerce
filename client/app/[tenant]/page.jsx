@@ -810,7 +810,6 @@ export default function StorefrontPage({ params }) {
             <a href={`/${tenant}`} className="text-[var(--foreground)] font-semibold border-b-2 border-[var(--accent)] pb-0.5">Home</a>
             <a href="#products-grid" className="hover:text-[var(--foreground)] transition-colors">Shop</a>
             <a href="#categories-section" className="hover:text-[var(--foreground)] transition-colors">Categories</a>
-            <a href={`/${tenant}/admin`} className="hover:text-[var(--accent-dark)] transition-colors text-xs uppercase tracking-wider font-bold">Admin</a>
           </nav>
 
           {/* Search & Actions: Theme Toggle, Wishlist, Cart, Account */}
