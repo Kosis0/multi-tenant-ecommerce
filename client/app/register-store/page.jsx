@@ -76,29 +76,29 @@ export default function RegisterStore() {
   };
 
   return (
-    <div className="flex-1 flex flex-col items-center justify-center min-h-screen px-4 bg-[#09090b] text-[#fafafa] py-12 relative">
-      <Link href="/" className="absolute top-6 left-6 text-xs font-mono text-[#a1a1aa] hover:text-[#db4444] transition-colors flex items-center gap-2">
+    <div className="flex-1 flex flex-col items-center justify-center min-h-screen px-4 bg-[var(--background)] text-[var(--foreground)] py-12 relative">
+      <Link href="/" className="absolute top-6 left-6 text-xs font-semibold text-[var(--muted)] hover:text-[var(--accent-dark)] transition-colors flex items-center gap-2">
         ← Back to Platform
       </Link>
 
       <div className="max-w-md w-full">
         <div className="mb-8 text-center">
-          <div className="w-12 h-12 rounded-xl bg-[#db4444] text-white font-bold text-2xl flex items-center justify-center mx-auto mb-4 border border-[#e53838]">
+          <div className="w-14 h-14 rounded-2xl bg-[var(--accent-clay)] text-[var(--accent-dark)] font-bold text-2xl flex items-center justify-center mx-auto mb-4 border border-[var(--border)] shadow-xs">
             M
           </div>
-          <h1 className="text-3xl font-extrabold tracking-tight mb-2">Create your store</h1>
-          <p className="text-[#a1a1aa] text-sm">Launch your storefront with dedicated brand isolation.</p>
+          <h1 className="font-editorial text-3xl font-semibold tracking-tight mb-2 text-[var(--foreground)]">Create Your Store</h1>
+          <p className="text-[var(--muted)] text-xs">Launch your editorial storefront with full brand isolation & Naira support.</p>
         </div>
 
-        <form onSubmit={handleSubmit} className="bg-[#141418] border border-[#272734] rounded-xl p-8 shadow-2xl space-y-5">
+        <form onSubmit={handleSubmit} className="bg-[var(--card)] border border-[var(--card-border)] rounded-3xl p-8 shadow-2xl space-y-5">
           {error && (
-            <div className="p-3 bg-red-950/40 text-red-400 text-xs rounded-lg border border-red-900/60">
+            <div className="p-3 bg-red-500/10 text-red-500 text-xs rounded-2xl border border-red-500/30 text-center font-medium">
               {error}
             </div>
           )}
 
           <div>
-            <label className="block text-xs font-medium uppercase tracking-wider text-[#a1a1aa] mb-1.5" htmlFor="storeName">
+            <label className="block text-xs font-semibold uppercase tracking-wider text-[var(--muted)] mb-1.5" htmlFor="storeName">
               Store Name
             </label>
             <input
@@ -108,13 +108,13 @@ export default function RegisterStore() {
               required
               value={formData.storeName}
               onChange={handleNameChange}
-              className="w-full px-3.5 py-2.5 bg-[#09090b] border border-[#272734] rounded-lg text-white text-sm outline-none focus:border-[#db4444] focus:ring-1 focus:ring-[#db4444] transition-colors"
-              placeholder="e.g. Vintage Apparel"
+              className="w-full px-4 py-3 bg-[var(--background)] border border-[var(--border)] rounded-2xl text-[var(--foreground)] text-xs outline-none focus:border-[var(--accent)] transition-colors"
+              placeholder="e.g. Clay Vintage & Co."
             />
           </div>
 
           <div>
-            <label className="block text-xs font-medium uppercase tracking-wider text-[#a1a1aa] mb-1.5" htmlFor="slug">
+            <label className="block text-xs font-semibold uppercase tracking-wider text-[var(--muted)] mb-1.5" htmlFor="slug">
               Store URL Slug
             </label>
             <input
@@ -124,16 +124,16 @@ export default function RegisterStore() {
               required
               value={formData.slug}
               onChange={handleChange}
-              className="w-full px-3.5 py-2.5 bg-[#09090b] border border-[#272734] rounded-lg text-white text-sm outline-none focus:border-[#db4444] focus:ring-1 focus:ring-[#db4444] transition-colors"
-              placeholder="vintage-apparel"
+              className="w-full px-4 py-3 bg-[var(--background)] border border-[var(--border)] rounded-2xl text-[var(--foreground)] text-xs outline-none focus:border-[var(--accent)] transition-colors font-mono"
+              placeholder="clay-vintage"
             />
-            <div className="text-xs font-mono text-[#a1a1aa] mt-2">
-              yourplatform.com/<span className="text-[#db4444]">{formData.slug || 'slug'}</span>
+            <div className="text-[11px] font-mono text-[var(--muted)] mt-2">
+              mercato.com/<span className="text-[var(--accent-dark)] font-bold">{formData.slug || 'slug'}</span>
             </div>
           </div>
 
           <div>
-            <label className="block text-xs font-medium uppercase tracking-wider text-[#a1a1aa] mb-1.5" htmlFor="email">
+            <label className="block text-xs font-semibold uppercase tracking-wider text-[var(--muted)] mb-1.5" htmlFor="email">
               Owner Email
             </label>
             <input
@@ -143,13 +143,13 @@ export default function RegisterStore() {
               required
               value={formData.email}
               onChange={handleChange}
-              className="w-full px-3.5 py-2.5 bg-[#09090b] border border-[#272734] rounded-lg text-white text-sm outline-none focus:border-[#db4444] focus:ring-1 focus:ring-[#db4444] transition-colors"
+              className="w-full px-4 py-3 bg-[var(--background)] border border-[var(--border)] rounded-2xl text-[var(--foreground)] text-xs outline-none focus:border-[var(--accent)] transition-colors"
               placeholder="owner@example.com"
             />
           </div>
 
           <div>
-            <label className="block text-xs font-medium uppercase tracking-wider text-[#a1a1aa] mb-1.5" htmlFor="password">
+            <label className="block text-xs font-semibold uppercase tracking-wider text-[var(--muted)] mb-1.5" htmlFor="password">
               Password
             </label>
             <input
@@ -159,24 +159,18 @@ export default function RegisterStore() {
               required
               value={formData.password}
               onChange={handleChange}
-              className="w-full px-3.5 py-2.5 bg-[#09090b] border border-[#272734] rounded-lg text-white text-sm outline-none focus:border-[#db4444] focus:ring-1 focus:ring-[#db4444] transition-colors"
+              className="w-full px-4 py-3 bg-[var(--background)] border border-[var(--border)] rounded-2xl text-[var(--foreground)] text-xs outline-none focus:border-[var(--accent)] transition-colors"
               placeholder="••••••••"
             />
           </div>
 
-          <div className="pt-2">
-            <button
-              type="submit"
-              disabled={loading}
-              className="press w-full bg-[#db4444] hover:bg-[#e53838] text-white py-3 rounded-lg text-sm font-semibold uppercase tracking-wider transition-all disabled:opacity-50 flex justify-center items-center"
-            >
-              {loading ? (
-                <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-              ) : (
-                'Launch Store'
-              )}
-            </button>
-          </div>
+          <button
+            type="submit"
+            disabled={loading}
+            className="btn-clay w-full py-3.5 text-xs font-bold uppercase tracking-wider disabled:opacity-50 mt-2"
+          >
+            {loading ? 'Setting Up Store...' : 'Launch Merchant Storefront'}
+          </button>
         </form>
       </div>
     </div>

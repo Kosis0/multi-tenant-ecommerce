@@ -3,6 +3,7 @@
 import { use, useEffect, useState, useRef } from 'react';
 import Image from 'next/image';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useTheme } from '../ThemeContext';
 
 export default function StorefrontPage({ params }) {
   const unwrappedParams = use(params);
@@ -18,6 +19,14 @@ export default function StorefrontPage({ params }) {
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
+
+  const { theme, toggleTheme } = useTheme();
+  
+  // Clay Shop Filter States
+  const [selectedSize, setSelectedSize] = useState('All');
+  const [selectedColor, setSelectedColor] = useState('All');
+  const [priceRange, setPriceRange] = useState(500000);
+  const [minRating, setMinRating] = useState(0);
 
   // Filters & State
   const [selectedCategory, setSelectedCategory] = useState('All');
@@ -586,12 +595,14 @@ export default function StorefrontPage({ params }) {
     return <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>;
   };
 
-  // Filtered Products
+  // Filtered Products (Clay Shop multi-attribute filtering)
   const filteredProducts = products.filter(p => {
     const matchesCategory = selectedCategory === 'All' || p.category?.toLowerCase() === selectedCategory.toLowerCase();
     const matchesSearch = p.title.toLowerCase().includes(searchQuery.toLowerCase()) || 
                           (p.category && p.category.toLowerCase().includes(searchQuery.toLowerCase()));
-    return matchesCategory && matchesSearch;
+    const matchesPrice = Number(p.price) <= priceRange;
+    const matchesRating = minRating === 0 || (Number(p.rating || 4.5) >= minRating);
+    return matchesCategory && matchesSearch && matchesPrice && matchesRating;
   });
 
   const cartItemsCount = cart.reduce((acc, item) => acc + item.quantity, 0);
@@ -622,78 +633,100 @@ export default function StorefrontPage({ params }) {
   };
 
   return (
-    <div className="min-h-screen bg-[#09090b] text-[#fafafa] flex flex-col font-sans selection:bg-[#db4444] selection:text-white">
+    <div className="min-h-screen bg-[var(--background)] text-[var(--foreground)] flex flex-col font-sans transition-colors duration-300">
       
       {/* Top Banner Announcement Bar */}
-      <div className="bg-[#141418] border-b border-[#272734] text-xs py-2 px-4 text-center text-[#a1a1aa] flex items-center justify-center gap-2">
-        <span>Summer Sale For All Products And Free Express Delivery - OFF 50%!</span>
-        <a href="#flash-sales" className="font-semibold text-white underline hover:text-[#db4444] transition-colors">Shop Now</a>
+      <div className="bg-[var(--accent-clay)] border-b border-[var(--border)] text-xs py-2 px-4 text-center text-[var(--accent-dark)] flex items-center justify-center gap-2 font-medium">
+        <span>Summer Clay Collection & Free Express Delivery Over ₦50,000!</span>
+        <a href="#products-grid" className="font-bold underline hover:opacity-80 transition-opacity">Discover Now</a>
       </div>
 
       {/* Main Store Header */}
-      <header className="sticky top-0 z-30 bg-[#09090b]/90 backdrop-blur-md border-b border-[#272734]">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-4">
+      <header className="sticky top-0 z-30 bg-[var(--surface)]/90 backdrop-blur-md border-b border-[var(--border)] transition-colors duration-300">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 h-18 flex items-center justify-between gap-4">
           
           {/* Brand Logo & Name */}
           <div className="flex items-center gap-3">
             <button 
               onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)} 
-              className="md:hidden p-2 text-[#a1a1aa] hover:text-white focus:outline-none focus:ring-2 focus:ring-[#db4444] rounded-lg"
+              className="md:hidden p-2 text-[var(--muted)] hover:text-[var(--foreground)] focus:outline-none rounded-xl"
               aria-label={isMobileMenuOpen ? "Close mobile menu" : "Open mobile menu"}
               aria-expanded={isMobileMenuOpen}
             >
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
             </button>
-            <a href={`/${tenant}`} className="text-xl font-bold tracking-tight capitalize flex items-center gap-2">
-              <span className="w-7 h-7 rounded-lg bg-[#db4444] text-white text-xs font-black flex items-center justify-center">
+            <a href={`/${tenant}`} className="text-xl font-bold tracking-tight capitalize flex items-center gap-2.5 group">
+              <span className="w-8 h-8 rounded-full bg-[var(--accent)] text-white text-xs font-black flex items-center justify-center shadow-sm group-hover:scale-105 transition-transform">
                 {getStoreDisplayName().charAt(0)}
               </span>
-              <span>{loading ? '...' : getStoreDisplayName()}</span>
+              <span className="font-editorial text-2xl font-semibold tracking-wide text-[var(--foreground)]">{loading ? '...' : getStoreDisplayName()}</span>
             </a>
           </div>
 
-          {/* Search Bar */}
-          <div className="hidden sm:flex flex-1 max-w-xs relative">
-            <input 
-              type="text" 
-              placeholder="What are you looking for?"
-              value={searchQuery}
-              onChange={e => setSearchQuery(e.target.value)}
-              onKeyDown={handleSearchKeyDown}
-              className="w-full bg-[#141418] border border-[#272734] rounded-lg pl-3.5 pr-9 py-1.5 text-xs text-white placeholder-[#a1a1aa] outline-none focus:border-[#db4444] transition-colors"
-            />
-            <button 
-              onClick={scrollToProducts} 
-              className="absolute right-3 top-2.5 text-[#a1a1aa] hover:text-white transition-colors focus:outline-none focus:ring-2 focus:ring-[#db4444] rounded"
-              aria-label="Search products"
-            >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
-            </button>
-          </div>
+          {/* Desktop Navigation Links */}
+          <nav className="hidden md:flex items-center gap-8 text-sm font-medium text-[var(--muted)]">
+            <a href={`/${tenant}`} className="text-[var(--foreground)] font-semibold border-b-2 border-[var(--accent)] pb-0.5">Home</a>
+            <a href="#products-grid" className="hover:text-[var(--foreground)] transition-colors">Shop</a>
+            <a href="#categories-section" className="hover:text-[var(--foreground)] transition-colors">Categories</a>
+            <a href={`/${tenant}/admin`} className="hover:text-[var(--accent-dark)] transition-colors text-xs uppercase tracking-wider font-bold">Admin</a>
+          </nav>
 
-          {/* Nav Icons: Wishlist, Cart, Account & Admin Link */}
-          <div className="flex items-center gap-3 sm:gap-4">
+          {/* Search & Actions: Theme Toggle, Wishlist, Cart, Account */}
+          <div className="flex items-center gap-2 sm:gap-3">
+            
+            {/* Search Bar */}
+            <div className="hidden sm:flex items-center relative">
+              <input 
+                type="text" 
+                placeholder="Search products..."
+                value={searchQuery}
+                onChange={e => setSearchQuery(e.target.value)}
+                onKeyDown={handleSearchKeyDown}
+                className="w-44 lg:w-56 bg-[var(--background)] border border-[var(--border)] rounded-full pl-3.5 pr-8 py-1.5 text-xs text-[var(--foreground)] placeholder-[var(--muted)] outline-none focus:border-[var(--accent)] transition-all"
+              />
+              <button 
+                onClick={scrollToProducts} 
+                className="absolute right-2.5 text-[var(--muted)] hover:text-[var(--foreground)] transition-colors"
+                aria-label="Search products"
+              >
+                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+              </button>
+            </div>
+
+            {/* Dark/Light Mode Switcher */}
+            <button
+              onClick={toggleTheme}
+              className="p-2 rounded-full border border-[var(--border)] text-[var(--muted)] hover:text-[var(--foreground)] hover:bg-[var(--background)] transition-all shadow-xs"
+              title={theme === 'dark' ? "Switch to Light Mode" : "Switch to Dark Mode"}
+              aria-label="Toggle Dark and Light Mode"
+            >
+              {theme === 'dark' ? (
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+              ) : (
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+              )}
+            </button>
             
             {/* Account Button */}
             <button 
               onClick={() => customer ? setIsAccountModalOpen(true) : setIsAuthModalOpen(true)}
-              className="relative p-2 text-[#a1a1aa] hover:text-white hover:bg-[#141418] rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-[#db4444]"
+              className="relative p-2 rounded-full border border-[var(--border)] text-[var(--muted)] hover:text-[var(--foreground)] hover:bg-[var(--background)] transition-all shadow-xs"
               aria-label="Account"
               title={customer ? `Account (${customer.name})` : "Sign In"}
             >
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
             </button>
             
             {/* Wishlist Button */}
             <button 
               onClick={() => setIsWishlistOpen(true)}
-              className="relative p-2 text-[#a1a1aa] hover:text-white hover:bg-[#141418] rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-[#db4444]"
+              className="relative p-2 rounded-full border border-[var(--border)] text-[var(--muted)] hover:text-[var(--foreground)] hover:bg-[var(--background)] transition-all shadow-xs"
               aria-label={`Wishlist, ${wishlistCount} items`}
               title="Wishlist"
             >
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
               {wishlistCount > 0 && (
-                <span className="absolute top-1 right-1 flex h-4 w-4 items-center justify-center rounded-full bg-[#db4444] text-[10px] font-bold text-white">
+                <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-[var(--accent)] text-[10px] font-bold text-white shadow-xs">
                   {wishlistCount}
                 </span>
               )}
@@ -702,13 +735,13 @@ export default function StorefrontPage({ params }) {
             {/* Cart Button */}
             <button 
               onClick={() => setIsCartOpen(true)}
-              className="relative p-2 text-[#a1a1aa] hover:text-white hover:bg-[#141418] rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-[#db4444]"
+              className="relative p-2 rounded-full border border-[var(--border)] text-[var(--muted)] hover:text-[var(--foreground)] hover:bg-[var(--background)] transition-all shadow-xs"
               aria-label={`Shopping Cart, ${cartItemsCount} items`}
               title="Shopping Cart"
             >
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg>
               {cartItemsCount > 0 && (
-                <span className="absolute top-1 right-1 flex h-4 w-4 items-center justify-center rounded-full bg-[#db4444] text-[10px] font-bold text-white">
+                <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-[var(--accent)] text-[10px] font-bold text-white shadow-xs">
                   {cartItemsCount}
                 </span>
               )}
@@ -721,11 +754,11 @@ export default function StorefrontPage({ params }) {
           <div className="relative">
             <input 
               type="text" 
-              placeholder="Search store products..."
+              placeholder="Search products..."
               value={searchQuery}
               onChange={e => setSearchQuery(e.target.value)}
               onKeyDown={handleSearchKeyDown}
-              className="w-full bg-[#141418] border border-[#272734] rounded-lg pl-3.5 pr-9 py-2 text-xs text-white placeholder-[#a1a1aa] outline-none focus:border-[#db4444]"
+              className="w-full bg-[var(--background)] border border-[var(--border)] rounded-full pl-4 pr-10 py-2 text-xs text-[var(--foreground)] placeholder-[var(--muted)] outline-none focus:border-[var(--accent)]"
             />
             <button onClick={scrollToProducts} className="absolute right-3 top-2.5 text-[#a1a1aa] hover:text-white transition-colors">
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
@@ -737,24 +770,24 @@ export default function StorefrontPage({ params }) {
       {/* MOBILE NAVIGATION DRAWER */}
       {isMobileMenuOpen && (
         <div className="fixed inset-0 z-40 md:hidden">
-          <div className="fixed inset-0 bg-black/70 backdrop-blur-sm" onClick={() => setIsMobileMenuOpen(false)}></div>
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-xs" onClick={() => setIsMobileMenuOpen(false)}></div>
           
-          <div className="fixed inset-y-0 left-0 w-72 max-w-[85vw] bg-[#141418] border-r border-[#272734] z-50 flex flex-col shadow-2xl" style={{ animation: 'slideInLeft 0.3s ease-out' }}>
+          <div className="fixed inset-y-0 left-0 w-72 max-w-[85vw] bg-[var(--surface)] border-r border-[var(--border)] z-50 flex flex-col shadow-2xl transition-colors duration-300" style={{ animation: 'slideInLeft 0.3s ease-out' }}>
             {/* Drawer Header */}
-            <div className="p-5 border-b border-[#272734] flex items-center justify-between">
+            <div className="p-5 border-b border-[var(--border)] flex items-center justify-between">
               <a href={`/${tenant}`} className="text-lg font-bold tracking-tight capitalize flex items-center gap-2">
-                <span className="w-7 h-7 rounded-lg bg-[#db4444] text-white text-xs font-black flex items-center justify-center">
+                <span className="w-7 h-7 rounded-full bg-[var(--accent)] text-white text-xs font-black flex items-center justify-center">
                   {getStoreDisplayName().charAt(0)}
                 </span>
-                <span className="text-white">{loading ? '...' : getStoreDisplayName()}</span>
+                <span className="font-editorial text-xl text-[var(--foreground)]">{loading ? '...' : getStoreDisplayName()}</span>
               </a>
-              <button onClick={() => setIsMobileMenuOpen(false)} className="p-2 text-[#a1a1aa] hover:text-white transition-colors">
+              <button onClick={() => setIsMobileMenuOpen(false)} className="p-2 text-[var(--muted)] hover:text-[var(--foreground)] transition-colors">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
               </button>
             </div>
 
             {/* Drawer Search */}
-            <div className="p-4 border-b border-[#272734]">
+            <div className="p-4 border-b border-[var(--border)]">
               <div className="relative">
                 <input 
                   type="text" 
@@ -762,9 +795,9 @@ export default function StorefrontPage({ params }) {
                   value={searchQuery}
                   onChange={e => setSearchQuery(e.target.value)}
                   onKeyDown={handleSearchKeyDown}
-                  className="w-full bg-[#09090b] border border-[#272734] rounded-lg pl-3.5 pr-9 py-2.5 text-xs text-white placeholder-[#a1a1aa] outline-none focus:border-[#db4444] transition-colors"
+                  className="w-full bg-[var(--background)] border border-[var(--border)] rounded-full pl-4 pr-10 py-2.5 text-xs text-[var(--foreground)] placeholder-[var(--muted)] outline-none focus:border-[var(--accent)]"
                 />
-                <button onClick={() => { scrollToProducts(); setIsMobileMenuOpen(false); }} className="absolute right-3 top-3 text-[#a1a1aa] hover:text-white transition-colors">
+                <button onClick={() => { scrollToProducts(); setIsMobileMenuOpen(false); }} className="absolute right-3 top-3 text-[var(--muted)] hover:text-[var(--foreground)]">
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
                 </button>
               </div>
@@ -772,14 +805,14 @@ export default function StorefrontPage({ params }) {
 
             {/* Drawer Navigation */}
             <nav className="flex-1 overflow-y-auto p-4 space-y-1">
-              <p className="text-[10px] uppercase tracking-widest text-[#a1a1aa] font-bold mb-3 px-3">Categories</p>
+              <p className="text-[10px] uppercase tracking-widest text-[var(--muted)] font-bold mb-3 px-3">Collections</p>
               
               <button
                 onClick={() => { setSelectedCategory('All'); scrollToProducts(); setIsMobileMenuOpen(false); }}
-                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-xs font-medium transition-all ${
+                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-full text-xs font-semibold transition-all ${
                   selectedCategory === 'All'
-                    ? 'bg-[#db4444]/10 text-[#db4444] border border-[#db4444]/30'
-                    : 'text-[#a1a1aa] hover:text-white hover:bg-[#1c1c28]'
+                    ? 'bg-[var(--accent)] text-white shadow-xs'
+                    : 'text-[var(--muted)] hover:text-[var(--foreground)] hover:bg-[var(--background)]'
                 }`}
               >
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
@@ -790,10 +823,10 @@ export default function StorefrontPage({ params }) {
                 <button
                   key={cat.id}
                   onClick={() => { setSelectedCategory(cat.name); scrollToProducts(); setIsMobileMenuOpen(false); }}
-                  className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-xs font-medium transition-all ${
+                  className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-full text-xs font-semibold transition-all ${
                     selectedCategory.toLowerCase() === cat.name.toLowerCase()
-                      ? 'bg-[#db4444] text-white'
-                      : 'text-[#a1a1aa] hover:text-white hover:bg-[#1c1c28]'
+                      ? 'bg-[var(--accent)] text-white shadow-xs'
+                      : 'text-[var(--muted)] hover:text-[var(--foreground)] hover:bg-[var(--background)]'
                   }`}
                 >
                   {renderCategoryIcon(cat.name)}
@@ -801,13 +834,28 @@ export default function StorefrontPage({ params }) {
                 </button>
               ))}
 
-              <div className="border-t border-[#272734] my-4"></div>
-              <p className="text-[10px] uppercase tracking-widest text-[#a1a1aa] font-bold mb-3 px-3">Quick Links</p>
+              <div className="border-t border-[var(--border)] my-4"></div>
+              <p className="text-[10px] uppercase tracking-widest text-[var(--muted)] font-bold mb-3 px-3">Quick Links</p>
               
+              <button
+                onClick={toggleTheme}
+                className="w-full flex items-center justify-between px-3 py-2.5 rounded-full text-xs font-semibold text-[var(--muted)] hover:text-[var(--foreground)] hover:bg-[var(--background)]"
+              >
+                <span className="flex items-center gap-3">
+                  {theme === 'dark' ? (
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+                  ) : (
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+                  )}
+                  {theme === 'dark' ? 'Light Theme' : 'Dark Theme'}
+                </span>
+                <span className="text-[10px] uppercase font-mono px-2 py-0.5 rounded-full bg-[var(--background)] border border-[var(--border)]">{theme}</span>
+              </button>
+
               <a
                 href="#flash-sales"
                 onClick={() => setIsMobileMenuOpen(false)}
-                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-xs font-medium text-[#a1a1aa] hover:text-white hover:bg-[#1c1c28]"
+                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-full text-xs font-semibold text-[var(--muted)] hover:text-[var(--foreground)] hover:bg-[var(--background)]"
               >
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
                 Flash Sales
@@ -815,7 +863,7 @@ export default function StorefrontPage({ params }) {
               
               <button
                 onClick={() => { setIsWishlistOpen(true); setIsMobileMenuOpen(false); }}
-                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-xs font-medium text-[#a1a1aa] hover:text-white hover:bg-[#1c1c28]"
+                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-full text-xs font-semibold text-[var(--muted)] hover:text-[var(--foreground)] hover:bg-[var(--background)]"
               >
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
                 Wishlist ({wishlistCount})
@@ -823,7 +871,7 @@ export default function StorefrontPage({ params }) {
 
               <button
                 onClick={() => { setIsCartOpen(true); setIsMobileMenuOpen(false); }}
-                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-xs font-medium text-[#a1a1aa] hover:text-white hover:bg-[#1c1c28]"
+                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-full text-xs font-semibold text-[var(--muted)] hover:text-[var(--foreground)] hover:bg-[var(--background)]"
               >
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg>
                 Cart ({cartItemsCount})
@@ -831,8 +879,8 @@ export default function StorefrontPage({ params }) {
             </nav>
 
             {/* Drawer Footer */}
-            <div className="p-4 border-t border-[#272734] text-center">
-              <p className="text-[10px] text-[#a1a1aa] font-mono">Powered by Mercato</p>
+            <div className="p-4 border-t border-[var(--border)] text-center">
+              <p className="text-[10px] text-[var(--muted)] font-mono">Mercato Commerce Engine</p>
             </div>
           </div>
         </div>
@@ -841,80 +889,168 @@ export default function StorefrontPage({ params }) {
       {/* Main Content Area */}
       <main className="flex-1 max-w-6xl mx-auto px-4 sm:px-6 py-6 w-full space-y-12">
         
-        {/* HERO BANNER SECTION */}
-        <section className="relative rounded-2xl bg-[#141418] border border-[#272734] p-6 sm:p-12 flex flex-col md:flex-row items-center justify-between gap-8">
-          <div className="max-w-md space-y-4 text-center md:text-left z-10">
-            <div className="flex items-center justify-center md:justify-start gap-2 text-[#a1a1aa] text-xs uppercase font-mono tracking-widest">
-              <span className="text-[#db4444] font-bold">●</span> Exclusive Collection
+        {/* EDITORIAL CLAY HERO BANNER SECTION */}
+        <section className="relative rounded-3xl bg-[var(--card-clay)] border border-[var(--border)] overflow-hidden p-8 sm:p-14 transition-all duration-300 shadow-sm">
+          {/* Subtle decorative background shapes */}
+          <div className="absolute top-0 right-0 w-96 h-96 rounded-full bg-[var(--accent-light)] blur-3xl pointer-events-none -mr-20 -mt-20"></div>
+          <div className="absolute bottom-0 left-1/3 w-64 h-64 rounded-full bg-[var(--accent-clay)] blur-2xl pointer-events-none"></div>
+
+          <div className="relative z-10 grid grid-cols-1 md:grid-cols-12 gap-8 items-center">
+            
+            {/* Left Content */}
+            <div className="md:col-span-7 space-y-5 text-center md:text-left">
+              <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-[var(--surface)]/80 backdrop-blur-xs border border-[var(--border)] text-[var(--muted)] text-[11px] font-semibold uppercase tracking-widest">
+                <span className="w-2 h-2 rounded-full bg-[var(--accent)]"></span> Spring / Summer 2026 Collection
+              </div>
+              
+              <h1 className="font-editorial text-4xl sm:text-6xl lg:text-7xl font-normal tracking-tight text-[var(--foreground)] leading-[1.1]">
+                Admire Stylish <br className="hidden sm:inline" />
+                <span className="italic font-normal text-[var(--accent-dark)]">Dresses & Looks</span>
+              </h1>
+
+              <p className="text-sm sm:text-base text-[var(--muted)] max-w-lg leading-relaxed">
+                Discover curated contemporary fashion, luxury footwear, and modern lifestyle essentials with seamless Naira checkout.
+              </p>
+
+              <div className="pt-2 flex flex-wrap items-center justify-center md:justify-start gap-4">
+                <a 
+                  href="#products-grid" 
+                  className="btn-clay"
+                >
+                  <span>Show More</span>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+                </a>
+
+                <a 
+                  href="#categories-section" 
+                  className="btn-clay-outline"
+                >
+                  Browse Catalog
+                </a>
+              </div>
             </div>
-            <h2 className="text-3xl sm:text-5xl font-extrabold tracking-tight text-white leading-tight">
-              Premium Tech & Lifestyle
-            </h2>
-            <p className="text-xs sm:text-sm text-[#a1a1aa]">
-              Discover premium gadgets, fashion, and lifestyle items curated specifically for your store.
-            </p>
-            <div className="pt-2">
-              <a 
-                href="#products-grid" 
-                className="inline-flex items-center gap-2 px-6 py-3 bg-[#db4444] hover:bg-[#e53838] text-white text-xs font-bold uppercase tracking-wider rounded-lg transition-all"
-              >
-                Shop Now →
-              </a>
+
+            {/* Right Editorial Showcase Card */}
+            <div className="md:col-span-5 flex justify-center md:justify-end">
+              <div className="relative w-full max-w-xs aspect-[4/5] rounded-3xl overflow-hidden shadow-clay border border-[var(--card-border)] bg-[var(--surface)] group">
+                <Image 
+                  src="https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?auto=format&fit=crop&w=800&q=80" 
+                  alt="Editorial Look" 
+                  fill 
+                  sizes="(max-width: 768px) 100vw, 400px" 
+                  className="object-cover group-hover:scale-105 transition-transform duration-700" 
+                  priority
+                />
+                
+                {/* Floating Clay Floating Tag */}
+                <div className="absolute bottom-4 inset-x-4 p-3.5 rounded-2xl bg-[var(--surface)]/90 backdrop-blur-md border border-[var(--border)] flex items-center justify-between shadow-soft">
+                  <div>
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--muted)] block">New In Store</span>
+                    <span className="text-xs font-semibold text-[var(--foreground)]">Summer Elegance</span>
+                  </div>
+                  <span className="text-xs font-mono font-bold text-[var(--accent-dark)]">From ₦25,000</span>
+                </div>
+              </div>
             </div>
+
+          </div>
+        </section>
+
+        {/* FEATURED CATEGORY TILES (CLAY SHOP STYLE) */}
+        <section id="categories-section" className="grid grid-cols-1 sm:grid-cols-3 gap-6">
+          <div 
+            onClick={() => { setSelectedCategory('Apparel'); scrollToProducts(); }}
+            className="cursor-pointer relative h-48 rounded-3xl overflow-hidden p-6 flex flex-col justify-between border border-[var(--border)] bg-gradient-to-br from-[#f8e7e1] to-[#eedcd6] dark:from-[#262022] dark:to-[#1e191b] group transition-all duration-300 hover:-translate-y-1 hover:shadow-clay"
+          >
+            <div className="flex justify-between items-start z-10">
+              <div>
+                <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--accent-dark)] block">Collection</span>
+                <h3 className="font-editorial text-2xl font-semibold text-[var(--foreground)] mt-0.5">Apparel</h3>
+              </div>
+              <span className="text-[10px] font-bold px-2.5 py-1 rounded-full bg-[var(--surface)]/80 text-[var(--foreground)] border border-[var(--border)]">
+                24 Items
+              </span>
+            </div>
+            <span className="text-xs font-bold text-[var(--accent-dark)] group-hover:translate-x-1 transition-transform inline-flex items-center gap-1 z-10">
+              Explore &rarr;
+            </span>
           </div>
 
-          <div className="relative w-full max-w-xs aspect-square flex items-center justify-center">
-            <div className="relative w-48 h-48 sm:w-64 sm:h-64 rounded-2xl bg-[#09090b] border border-[#272734] p-4 flex flex-col items-center justify-center text-center">
-              <div className="w-12 h-12 rounded-xl bg-[#141418] border border-[#272734] text-[#db4444] flex items-center justify-center mb-3">
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+          <div 
+            onClick={() => { setSelectedCategory('Shoes'); scrollToProducts(); }}
+            className="cursor-pointer relative h-48 rounded-3xl overflow-hidden p-6 flex flex-col justify-between border border-[var(--border)] bg-gradient-to-br from-[#f2ebe5] to-[#e4dad3] dark:from-[#232125] dark:to-[#1a191d] group transition-all duration-300 hover:-translate-y-1 hover:shadow-clay"
+          >
+            <div className="flex justify-between items-start z-10">
+              <div>
+                <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--muted)] block">Footwear</span>
+                <h3 className="font-editorial text-2xl font-semibold text-[var(--foreground)] mt-0.5">Bestsellers</h3>
               </div>
-              <span className="text-sm font-mono font-bold text-white">Exclusive Deals</span>
-              <span className="text-xs text-[#a1a1aa] mt-1">Available in Naira (₦)</span>
-              <div className="mt-3 px-3 py-1 bg-[#141418] text-[#db4444] text-[10px] font-bold rounded-full border border-[#272734]">
-                Save Big Today
-              </div>
+              <span className="text-[10px] font-bold px-2.5 py-1 rounded-full bg-[var(--surface)]/80 text-[var(--foreground)] border border-[var(--border)]">
+                Popular
+              </span>
             </div>
+            <span className="text-xs font-bold text-[var(--accent-dark)] group-hover:translate-x-1 transition-transform inline-flex items-center gap-1 z-10">
+              Shop Now &rarr;
+            </span>
+          </div>
+
+          <div 
+            onClick={() => { setSelectedCategory('Accessories'); scrollToProducts(); }}
+            className="cursor-pointer relative h-48 rounded-3xl overflow-hidden p-6 flex flex-col justify-between border border-[var(--border)] bg-gradient-to-br from-[#ebddec] to-[#ded0e0] dark:from-[#291f2c] dark:to-[#1c161f] group transition-all duration-300 hover:-translate-y-1 hover:shadow-clay"
+          >
+            <div className="flex justify-between items-start z-10">
+              <div>
+                <span className="text-[10px] font-bold uppercase tracking-wider text-purple-600 dark:text-purple-400 block">Highlights</span>
+                <h3 className="font-editorial text-2xl font-semibold text-[var(--foreground)] mt-0.5">Accessories</h3>
+              </div>
+              <span className="text-[10px] font-bold px-2.5 py-1 rounded-full bg-[var(--surface)]/80 text-[var(--foreground)] border border-[var(--border)]">
+                New
+              </span>
+            </div>
+            <span className="text-xs font-bold text-purple-600 dark:text-purple-400 group-hover:translate-x-1 transition-transform inline-flex items-center gap-1 z-10">
+              Discover &rarr;
+            </span>
           </div>
         </section>
 
         {/* FLASH SALES SECTION */}
-        <section id="flash-sales" className="space-y-6 pt-4">
-          <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 border-b border-[#272734] pb-4">
+        <section id="flash-sales" className="space-y-6 pt-2">
+          <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 border-b border-[var(--border)] pb-4">
             <div className="space-y-1">
-              <div className="flex items-center gap-2 text-xs font-bold uppercase text-[#db4444]">
-                <span className="w-3 h-7 bg-[#db4444] rounded-sm inline-block"></span>
-                <span>Today's</span>
+              <div className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-[var(--accent-dark)]">
+                <span className="w-2.5 h-2.5 rounded-full bg-[var(--accent)] inline-block animate-ping"></span>
+                <span>Limited Time Offer</span>
               </div>
-              <h2 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-white">Flash Sales</h2>
+              <h2 className="font-editorial text-3xl sm:text-4xl font-semibold tracking-tight text-[var(--foreground)]">Flash Deals</h2>
             </div>
 
             <div className="flex items-center gap-2 text-center font-mono">
-              <div className="bg-[#141418] border border-[#272734] rounded-lg px-3 py-1.5 min-w-[50px]">
-                <span className="text-xs text-[#a1a1aa] block uppercase text-[9px]">Days</span>
-                <span className="text-base font-bold text-white">{String(timeLeft.days).padStart(2, '0')}</span>
+              <div className="bg-[var(--card)] border border-[var(--border)] rounded-2xl px-3.5 py-2 min-w-[54px] shadow-xs">
+                <span className="text-[var(--muted)] block uppercase text-[9px] font-bold">Days</span>
+                <span className="text-base font-bold text-[var(--foreground)]">{String(timeLeft.days).padStart(2, '0')}</span>
               </div>
-              <span className="text-[#db4444] font-bold">:</span>
-              <div className="bg-[#141418] border border-[#272734] rounded-lg px-3 py-1.5 min-w-[50px]">
-                <span className="text-xs text-[#a1a1aa] block uppercase text-[9px]">Hours</span>
-                <span className="text-base font-bold text-white">{String(timeLeft.hours).padStart(2, '0')}</span>
+              <span className="text-[var(--accent)] font-bold">:</span>
+              <div className="bg-[var(--card)] border border-[var(--border)] rounded-2xl px-3.5 py-2 min-w-[54px] shadow-xs">
+                <span className="text-[var(--muted)] block uppercase text-[9px] font-bold">Hours</span>
+                <span className="text-base font-bold text-[var(--foreground)]">{String(timeLeft.hours).padStart(2, '0')}</span>
               </div>
-              <span className="text-[#db4444] font-bold">:</span>
-              <div className="bg-[#141418] border border-[#272734] rounded-lg px-3 py-1.5 min-w-[50px]">
-                <span className="text-xs text-[#a1a1aa] block uppercase text-[9px]">Mins</span>
-                <span className="text-base font-bold text-white">{String(timeLeft.minutes).padStart(2, '0')}</span>
+              <span className="text-[var(--accent)] font-bold">:</span>
+              <div className="bg-[var(--card)] border border-[var(--border)] rounded-2xl px-3.5 py-2 min-w-[54px] shadow-xs">
+                <span className="text-[var(--muted)] block uppercase text-[9px] font-bold">Mins</span>
+                <span className="text-base font-bold text-[var(--foreground)]">{String(timeLeft.minutes).padStart(2, '0')}</span>
               </div>
-              <span className="text-[#db4444] font-bold">:</span>
-              <div className="bg-[#141418] border border-[#272734] rounded-lg px-3 py-1.5 min-w-[50px]">
-                <span className="text-xs text-[#a1a1aa] block uppercase text-[9px]">Secs</span>
-                <span className="text-base font-bold text-white text-[#db4444]">{String(timeLeft.seconds).padStart(2, '0')}</span>
+              <span className="text-[var(--accent)] font-bold">:</span>
+              <div className="bg-[var(--card)] border border-[var(--border)] rounded-2xl px-3.5 py-2 min-w-[54px] shadow-xs">
+                <span className="text-[var(--muted)] block uppercase text-[9px] font-bold">Secs</span>
+                <span className="text-base font-bold text-[var(--accent-dark)]">{String(timeLeft.seconds).padStart(2, '0')}</span>
               </div>
             </div>
           </div>
 
           {loading ? (
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 sm:gap-6">
               {[...Array(4)].map((_, i) => (
-                <div key={i} className="h-64 rounded-xl border border-[#272734] bg-[#141418]"></div>
+                <div key={i} className="h-80 rounded-3xl skeleton"></div>
               ))}
             </div>
           ) : (
@@ -929,18 +1065,20 @@ export default function StorefrontPage({ params }) {
                 const discountPercent = product.discount_percent || (calculatedPercent > 0 ? calculatedPercent : 20);
 
                 return (
-                  <div key={product.id} className="group relative bg-[#141418] border border-[#272734] rounded-xl overflow-hidden flex flex-col">
+                  <div key={product.id} className="clay-card group relative overflow-hidden flex flex-col">
                     
-                    <div className="absolute top-3 left-3 z-10 bg-[#db4444] text-white text-[10px] font-bold px-2 py-0.5 rounded">
+                    {/* Discount Badge */}
+                    <div className="absolute top-3.5 left-3.5 z-10 bg-[var(--accent)] text-white text-[10px] font-bold px-2.5 py-0.5 rounded-full shadow-xs">
                       -{discountPercent}% OFF
                     </div>
 
+                    {/* Wishlist Button */}
                     <button 
                       onClick={() => toggleWishlist(product.id)}
-                      className={`absolute top-3 right-3 z-10 p-1.5 rounded-full border transition-all ${
+                      className={`absolute top-3.5 right-3.5 z-10 p-2 rounded-full border transition-all ${
                         isWishlisted 
-                          ? 'bg-[#db4444] border-[#db4444] text-white' 
-                          : 'bg-[#09090b] border-[#272734] text-[#a1a1aa] hover:text-white'
+                          ? 'bg-[var(--accent)] border-[var(--accent)] text-white shadow-xs' 
+                          : 'bg-[var(--surface)]/90 backdrop-blur-xs border-[var(--border)] text-[var(--muted)] hover:text-[var(--foreground)]'
                       }`}
                     >
                       <svg width="14" height="14" viewBox="0 0 24 24" fill={isWishlisted ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="2">
@@ -950,37 +1088,32 @@ export default function StorefrontPage({ params }) {
 
                     <div 
                       onClick={() => openProductDetail(product)}
-                      className="aspect-square relative overflow-hidden bg-[#09090b] flex items-center justify-center cursor-pointer"
+                      className="aspect-square relative overflow-hidden bg-[var(--card-clay)] flex items-center justify-center cursor-pointer m-3 rounded-2xl"
                     >
                       {product.image_url ? (
-                        <img src={product.image_url} alt={product.title} className="w-full h-full object-cover" />
+                        <img src={product.image_url} alt={product.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 rounded-2xl" />
                       ) : (
-                        <div className="text-[#a1a1aa] text-[10px] font-mono">{product.category || 'Item'}</div>
+                        <div className="text-[var(--muted)] text-xs font-mono">{product.category || 'Item'}</div>
                       )}
-
-                      <div className="absolute inset-x-0 bottom-0 p-2 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                        <button 
-                          onClick={(e) => { e.stopPropagation(); addToCart(product); }}
-                          disabled={product.stock === 0}
-                          className="w-full py-2 bg-[#db4444] hover:bg-[#e53838] text-white text-xs font-bold uppercase rounded transition-colors disabled:opacity-50"
-                        >
-                          {product.stock > 0 ? 'Add To Cart' : 'Out of Stock'}
-                        </button>
-                      </div>
                     </div>
 
-                    <div className="p-4 flex flex-col flex-1">
-                      <h3 className="text-xs sm:text-sm font-semibold text-white truncate mb-1 cursor-pointer hover:text-[#db4444]" onClick={() => openProductDetail(product)}>
+                    <div className="p-4 pt-1 flex flex-col flex-1">
+                      <span className="text-[10px] uppercase tracking-wider font-semibold text-[var(--muted)] mb-1">{product.category || 'Collection'}</span>
+                      <h3 className="text-sm font-semibold text-[var(--foreground)] truncate mb-2 cursor-pointer hover:text-[var(--accent-dark)] transition-colors" onClick={() => openProductDetail(product)}>
                         {product.title}
                       </h3>
-                      <div className="flex items-center gap-2 mb-2 font-mono text-xs sm:text-sm">
-                        <span className="text-[#db4444] font-bold">{formatNaira(product.price)}</span>
-                        <span className="text-[#a1a1aa] line-through text-[11px]">{formatNaira(originalPrice)}</span>
+                      <div className="flex items-baseline gap-2 mb-3">
+                        <span className="text-base font-mono font-bold text-[var(--accent-dark)]">{formatNaira(product.price)}</span>
+                        <span className="text-xs text-[var(--muted)] line-through">{formatNaira(originalPrice)}</span>
                       </div>
-                      <div className="flex items-center gap-1.5 mt-auto text-[11px] text-[#a1a1aa]">
-                        <div className="flex text-amber-400">★★★★☆</div>
-                        <span>({product.review_count || 12} reviews)</span>
-                      </div>
+                      
+                      <button 
+                        onClick={() => addToCart(product)}
+                        disabled={product.stock === 0}
+                        className="btn-clay w-full mt-auto text-xs py-2 disabled:opacity-50"
+                      >
+                        {product.stock > 0 ? 'Shop Now' : 'Out of Stock'}
+                      </button>
                     </div>
                   </div>
                 );
@@ -989,26 +1122,26 @@ export default function StorefrontPage({ params }) {
           )}
         </section>
 
-        {/* BROWSE BY CATEGORY SECTION */}
-        <section className="space-y-6 pt-4 border-t border-[#272734]">
+        {/* BROWSE BY CATEGORY PILLS SECTION */}
+        <section className="space-y-6 pt-4 border-t border-[var(--border)]">
           <div className="space-y-1">
-            <div className="flex items-center gap-2 text-xs font-bold uppercase text-[#db4444]">
-              <span className="w-3 h-7 bg-[#db4444] rounded-sm inline-block"></span>
+            <div className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-[var(--accent-dark)]">
+              <span className="w-2 h-2 rounded-full bg-[var(--accent)]"></span>
               <span>Categories</span>
             </div>
-            <h2 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-white">Browse By Category</h2>
+            <h2 className="font-editorial text-3xl sm:text-4xl font-semibold tracking-tight text-[var(--foreground)]">Browse By Category</h2>
           </div>
 
           <div className="flex items-center gap-3 overflow-x-auto no-scrollbar pb-2">
             <button
               onClick={() => setSelectedCategory('All')}
-              className={`flex items-center gap-2 px-5 py-3 rounded-xl border text-xs font-semibold uppercase whitespace-nowrap transition-all ${
+              className={`flex items-center gap-2 px-5 py-2.5 rounded-full border text-xs font-semibold whitespace-nowrap transition-all ${
                 selectedCategory === 'All'
-                  ? 'bg-[#db4444] border-[#db4444] text-white'
-                  : 'bg-[#141418] border-[#272734] text-[#a1a1aa] hover:text-white hover:border-[#3f3f50]'
+                  ? 'bg-[var(--accent)] border-[var(--accent)] text-white shadow-xs'
+                  : 'bg-[var(--surface)] border-[var(--border)] text-[var(--muted)] hover:text-[var(--foreground)] hover:border-[var(--accent)]'
               }`}
             >
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
               <span>All Products</span>
             </button>
 
@@ -1016,10 +1149,10 @@ export default function StorefrontPage({ params }) {
               <button
                 key={cat.id}
                 onClick={() => setSelectedCategory(cat.name)}
-                className={`flex items-center gap-2 px-5 py-3 rounded-xl border text-xs font-semibold uppercase whitespace-nowrap transition-all ${
+                className={`flex items-center gap-2 px-5 py-2.5 rounded-full border text-xs font-semibold whitespace-nowrap transition-all ${
                   selectedCategory.toLowerCase() === cat.name.toLowerCase()
-                    ? 'bg-[#db4444] border-[#db4444] text-white'
-                    : 'bg-[#141418] border-[#272734] text-[#a1a1aa] hover:text-white hover:border-[#3f3f50]'
+                    ? 'bg-[var(--accent)] border-[var(--accent)] text-white shadow-xs'
+                    : 'bg-[var(--surface)] border-[var(--border)] text-[var(--muted)] hover:text-[var(--foreground)] hover:border-[var(--accent)]'
                 }`}
               >
                 {renderCategoryIcon(cat.name)}
@@ -1029,115 +1162,279 @@ export default function StorefrontPage({ params }) {
           </div>
         </section>
 
-        {/* EXPLORE OUR PRODUCTS GRID */}
-        <section id="products-grid" ref={productsGridRef} className="space-y-6 pt-4 border-t border-[#272734] scroll-mt-24">
-          <div className="space-y-1">
-            <div className="flex items-center gap-2 text-xs font-bold uppercase text-[#db4444]">
-              <span className="w-3 h-7 bg-[#db4444] rounded-sm inline-block"></span>
-              <span>Our Products</span>
+        {/* EXPLORE OUR PRODUCTS WITH CLAY SHOP FILTER SIDEBAR */}
+        <section id="products-grid" ref={productsGridRef} className="space-y-8 pt-6 border-t border-[var(--border)] scroll-mt-24">
+          <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
+            <div className="space-y-1">
+              <div className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-[var(--accent-dark)]">
+                <span className="w-2 h-2 rounded-full bg-[var(--accent)]"></span>
+                <span>Exclusive Catalog</span>
+              </div>
+              <h2 className="font-editorial text-3xl sm:text-4xl font-semibold tracking-tight text-[var(--foreground)]">Explore Our Products</h2>
             </div>
-            <h2 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-white">Explore Our Products</h2>
+            <p className="text-xs font-medium text-[var(--muted)]">
+              Showing {filteredProducts.length} curated item{filteredProducts.length === 1 ? '' : 's'}
+            </p>
           </div>
 
-          {filteredProducts.length === 0 ? (
-            <div className="text-center py-16 bg-[#141418] border border-[#272734] rounded-xl">
-              <p className="text-xs text-[#a1a1aa]">No products found in this category.</p>
-            </div>
-          ) : (
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6">
-              {filteredProducts.map(product => {
-                const isWishlisted = wishlist.includes(product.id);
-                return (
-                  <div key={product.id} className="group relative bg-[#141418] border border-[#272734] rounded-xl overflow-hidden flex flex-col">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+            
+            {/* LEFT SIDEBAR FILTERS (MATCHING CLAY SHOP SKETCH DESIGN) */}
+            <div className="hidden lg:block lg:col-span-3 space-y-6 bg-[var(--card)] border border-[var(--card-border)] p-6 rounded-3xl shadow-soft sticky top-24">
+              
+              {/* Category Filter */}
+              <div className="space-y-3 pb-5 border-b border-[var(--border)]">
+                <div className="flex justify-between items-center">
+                  <h4 className="text-xs font-bold uppercase tracking-wider text-[var(--foreground)]">Category</h4>
+                  {selectedCategory !== 'All' && (
+                    <button onClick={() => setSelectedCategory('All')} className="text-[10px] text-[var(--accent-dark)] hover:underline font-bold">Reset</button>
+                  )}
+                </div>
+                <div className="space-y-1.5">
+                  <button 
+                    onClick={() => setSelectedCategory('All')}
+                    className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-medium transition-all ${
+                      selectedCategory === 'All' ? 'bg-[var(--accent-clay)] text-[var(--accent-dark)] font-bold' : 'text-[var(--muted)] hover:text-[var(--foreground)]'
+                    }`}
+                  >
+                    <span>All Collections</span>
+                    <span className="text-[10px] font-mono opacity-70">{products.length}</span>
+                  </button>
+                  {categories.map(cat => (
                     <button 
-                      onClick={() => toggleWishlist(product.id)}
-                      className={`absolute top-3 right-3 z-10 p-1.5 rounded-full border transition-all focus:outline-none focus:ring-2 focus:ring-[#db4444] ${
-                        isWishlisted ? 'bg-[#db4444] border-[#db4444] text-white' : 'bg-[#09090b] border-[#272734] text-[#a1a1aa]'
+                      key={cat.id}
+                      onClick={() => setSelectedCategory(cat.name)}
+                      className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-medium transition-all ${
+                        selectedCategory.toLowerCase() === cat.name.toLowerCase() ? 'bg-[var(--accent-clay)] text-[var(--accent-dark)] font-bold' : 'text-[var(--muted)] hover:text-[var(--foreground)]'
                       }`}
-                      aria-label={isWishlisted ? "Remove from wishlist" : "Add to wishlist"}
-                      aria-pressed={isWishlisted}
                     >
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill={isWishlisted ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="2" aria-hidden="true"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
+                      <span className="flex items-center gap-2">
+                        {renderCategoryIcon(cat.name)}
+                        {cat.name}
+                      </span>
+                      <span className="text-[10px] font-mono opacity-70">
+                        {products.filter(p => p.category?.toLowerCase() === cat.name.toLowerCase()).length}
+                      </span>
                     </button>
+                  ))}
+                </div>
+              </div>
 
-                    <div 
-                      onClick={() => openProductDetail(product)} 
-                      onKeyDown={(e) => { if(e.key === 'Enter') openProductDetail(product); }}
-                      className="aspect-square relative overflow-hidden bg-[#09090b] flex items-center justify-center cursor-pointer focus:outline-none focus:ring-2 focus:ring-[#db4444]"
-                      tabIndex={0}
-                      role="button"
-                      aria-label={`View details for ${product.title}`}
+              {/* Price Range Slider */}
+              <div className="space-y-3 pb-5 border-b border-[var(--border)]">
+                <div className="flex justify-between items-center">
+                  <h4 className="text-xs font-bold uppercase tracking-wider text-[var(--foreground)]">Max Price</h4>
+                  <span className="text-xs font-mono font-bold text-[var(--accent-dark)]">{formatNaira(priceRange)}</span>
+                </div>
+                <input 
+                  type="range" 
+                  min="5000" 
+                  max="500000" 
+                  step="5000"
+                  value={priceRange} 
+                  onChange={e => setPriceRange(Number(e.target.value))}
+                  className="w-full accent-[var(--accent)] cursor-pointer" 
+                />
+                <div className="flex justify-between text-[10px] text-[var(--muted)] font-mono">
+                  <span>₦5,000</span>
+                  <span>₦500,000+</span>
+                </div>
+              </div>
+
+              {/* Sizes (Clay Shop Chip Buttons) */}
+              <div className="space-y-3 pb-5 border-b border-[var(--border)]">
+                <div className="flex justify-between items-center">
+                  <h4 className="text-xs font-bold uppercase tracking-wider text-[var(--foreground)]">Size</h4>
+                  {selectedSize !== 'All' && (
+                    <button onClick={() => setSelectedSize('All')} className="text-[10px] text-[var(--accent-dark)] hover:underline font-bold">Reset</button>
+                  )}
+                </div>
+                <div className="grid grid-cols-3 gap-2">
+                  {['XXS', 'XS', 'S', 'M', 'L', 'XL'].map(size => (
+                    <button
+                      key={size}
+                      onClick={() => setSelectedSize(prev => prev === size ? 'All' : size)}
+                      className={`py-2 text-xs font-bold rounded-xl border transition-all ${
+                        selectedSize === size
+                          ? 'bg-[var(--accent)] border-[var(--accent)] text-white shadow-xs'
+                          : 'bg-[var(--background)] border-[var(--border)] text-[var(--muted)] hover:border-[var(--accent)] hover:text-[var(--foreground)]'
+                      }`}
                     >
-                      {product.image_url ? (
-                        <Image src={product.image_url} alt={product.title} fill sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw" className="object-cover" />
-                      ) : (
-                        <div className="text-[#a1a1aa] text-[10px] font-mono">{product.category || 'Product'}</div>
-                      )}
-                      <div className="absolute inset-x-0 bottom-0 p-2 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                        <button 
-                          onClick={(e) => { e.stopPropagation(); addToCart(product); }}
-                          disabled={product.stock === 0}
-                          className="w-full py-2 bg-[#db4444] hover:bg-[#e53838] text-white text-xs font-bold uppercase rounded disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-white"
-                          aria-label={`Add ${product.title} to cart`}
-                        >
-                          {product.stock > 0 ? 'Add To Cart' : 'Out of Stock'}
-                        </button>
-                      </div>
-                    </div>
+                      {size}
+                    </button>
+                  ))}
+                </div>
+              </div>
 
-                    <div className="p-4 flex flex-col flex-1">
-                      <h3 
-                        className="text-xs sm:text-sm font-semibold text-white truncate mb-1 cursor-pointer hover:text-[#db4444] transition-colors focus:outline-none focus:ring-2 focus:ring-[#db4444] rounded px-1 -mx-1" 
-                        onClick={() => openProductDetail(product)}
-                        onKeyDown={(e) => { if(e.key === 'Enter') openProductDetail(product); }}
-                        tabIndex={0}
-                        role="button"
-                        aria-label={`View details for ${product.title}`}
-                      >
-                        {product.title}
-                      </h3>
-                      <div className="flex items-center justify-between mb-2">
-                        <span className="text-xs sm:text-sm font-bold font-mono text-[#db4444]">{formatNaira(product.price)}</span>
-                        <span className="text-[10px] text-[#a1a1aa] font-mono">{product.stock > 0 ? `${product.stock} left` : 'Sold out'}</span>
+              {/* Customer Rating Filter */}
+              <div className="space-y-3">
+                <div className="flex justify-between items-center">
+                  <h4 className="text-xs font-bold uppercase tracking-wider text-[var(--foreground)]">Rating</h4>
+                  {minRating > 0 && (
+                    <button onClick={() => setMinRating(0)} className="text-[10px] text-[var(--accent-dark)] hover:underline font-bold">Clear</button>
+                  )}
+                </div>
+                <div className="space-y-1">
+                  {[4, 3, 2].map(star => (
+                    <button
+                      key={star}
+                      onClick={() => setMinRating(prev => prev === star ? 0 : star)}
+                      className={`w-full flex items-center justify-between px-3 py-1.5 rounded-xl text-xs transition-all ${
+                        minRating === star ? 'bg-[var(--accent-clay)] font-bold text-[var(--foreground)]' : 'text-[var(--muted)] hover:text-[var(--foreground)]'
+                      }`}
+                    >
+                      <div className="flex text-amber-400 text-xs">
+                        {'★'.repeat(star)}{'☆'.repeat(5 - star)}
                       </div>
-                    </div>
+                      <span className="text-[10px] text-[var(--muted)]">& Up</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+            </div>
+
+            {/* RIGHT PRODUCTS GRID */}
+            <div className="lg:col-span-9 space-y-6">
+              {filteredProducts.length === 0 ? (
+                <div className="text-center py-20 bg-[var(--card)] border border-[var(--border)] rounded-3xl p-8">
+                  <div className="w-14 h-14 rounded-full bg-[var(--accent-clay)] text-[var(--accent-dark)] flex items-center justify-center mx-auto mb-3">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
                   </div>
-                );
-              })}
+                  <h3 className="font-editorial text-xl font-semibold text-[var(--foreground)] mb-1">No products match your criteria</h3>
+                  <p className="text-xs text-[var(--muted)] mb-6">Try adjusting your filters, price range, or category selection.</p>
+                  <button 
+                    onClick={() => { setSelectedCategory('All'); setPriceRange(500000); setMinRating(0); setSelectedSize('All'); setSearchQuery(''); }}
+                    className="btn-clay text-xs"
+                  >
+                    Reset All Filters
+                  </button>
+                </div>
+              ) : (
+                <div className="grid grid-cols-2 sm:grid-cols-2 xl:grid-cols-3 gap-5 sm:gap-6">
+                  {filteredProducts.map(product => {
+                    const isWishlisted = wishlist.includes(product.id);
+                    const originalPrice = product.original_price || (Number(product.price) * 1.25);
+                    const isNew = product.is_new_arrival;
+
+                    return (
+                      <div key={product.id} className="clay-card group relative overflow-hidden flex flex-col">
+                        
+                        {/* Top Badges */}
+                        <div className="absolute top-3.5 left-3.5 z-10 flex flex-col gap-1">
+                          {isNew && (
+                            <span className="bg-indigo-600 text-white text-[9px] font-bold px-2.5 py-0.5 rounded-full shadow-xs uppercase tracking-wider">
+                              New
+                            </span>
+                          )}
+                          {product.is_featured && (
+                            <span className="bg-purple-600 text-white text-[9px] font-bold px-2.5 py-0.5 rounded-full shadow-xs uppercase tracking-wider">
+                              Popular
+                            </span>
+                          )}
+                        </div>
+
+                        {/* Wishlist Button */}
+                        <button 
+                          onClick={() => toggleWishlist(product.id)}
+                          className={`absolute top-3.5 right-3.5 z-10 p-2 rounded-full border transition-all ${
+                            isWishlisted 
+                              ? 'bg-[var(--accent)] border-[var(--accent)] text-white shadow-xs' 
+                              : 'bg-[var(--surface)]/90 backdrop-blur-xs border-[var(--border)] text-[var(--muted)] hover:text-[var(--foreground)]'
+                          }`}
+                          aria-label={isWishlisted ? "Remove from wishlist" : "Add to wishlist"}
+                          aria-pressed={isWishlisted}
+                        >
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill={isWishlisted ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="2" aria-hidden="true"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
+                        </button>
+
+                        <div 
+                          onClick={() => openProductDetail(product)} 
+                          onKeyDown={(e) => { if(e.key === 'Enter') openProductDetail(product); }}
+                          className="aspect-square relative overflow-hidden bg-[var(--card-clay)] flex items-center justify-center cursor-pointer m-3 rounded-2xl"
+                          tabIndex={0}
+                          role="button"
+                          aria-label={`View details for ${product.title}`}
+                        >
+                          {product.image_url ? (
+                            <Image src={product.image_url} alt={product.title} fill sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw" className="object-cover group-hover:scale-105 transition-transform duration-500 rounded-2xl" />
+                          ) : (
+                            <div className="text-[var(--muted)] text-xs font-mono">{product.category || 'Product'}</div>
+                          )}
+                        </div>
+
+                        <div className="p-4 pt-1 flex flex-col flex-1">
+                          <span className="text-[10px] uppercase tracking-wider font-semibold text-[var(--muted)] mb-1">{product.category || 'Collection'}</span>
+                          
+                          <h3 
+                            className="text-sm font-semibold text-[var(--foreground)] truncate mb-2 cursor-pointer hover:text-[var(--accent-dark)] transition-colors" 
+                            onClick={() => openProductDetail(product)}
+                            onKeyDown={(e) => { if(e.key === 'Enter') openProductDetail(product); }}
+                            tabIndex={0}
+                            role="button"
+                            aria-label={`View details for ${product.title}`}
+                          >
+                            {product.title}
+                          </h3>
+
+                          <div className="flex items-baseline justify-between mb-3">
+                            <span className="text-base font-mono font-bold text-[var(--accent-dark)]">{formatNaira(product.price)}</span>
+                            <span className="text-[11px] text-[var(--muted)] font-mono">{product.stock > 0 ? `${product.stock} in stock` : 'Sold out'}</span>
+                          </div>
+
+                          <button 
+                            onClick={(e) => { e.stopPropagation(); addToCart(product); }}
+                            disabled={product.stock === 0}
+                            className="btn-clay w-full mt-auto text-xs py-2 disabled:opacity-50"
+                            aria-label={`Add ${product.title} to cart`}
+                          >
+                            {product.stock > 0 ? 'Shop Now' : 'Out of Stock'}
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+
+              {hasMore && !loading && (
+                <div className="flex justify-center mt-12">
+                  <button 
+                    onClick={loadMore} 
+                    disabled={loadingMore} 
+                    className="btn-clay-outline text-xs px-8 py-3 disabled:opacity-50"
+                  >
+                    {loadingMore ? 'Loading More Products...' : 'Load More Products'}
+                  </button>
+                </div>
+              )}
             </div>
-          )}
-          {hasMore && !loading && (
-            <div className="flex justify-center mt-12">
-              <button 
-                onClick={loadMore} 
-                disabled={loadingMore} 
-                className="px-8 py-3 bg-[#141418] border border-[#272734] text-white text-sm font-bold uppercase tracking-wider rounded-lg hover:bg-[#272734] transition-colors disabled:opacity-50"
-              >
-                {loadingMore ? 'Loading...' : 'Load More Products'}
-              </button>
-            </div>
-          )}
+
+          </div>
         </section>
 
-        {/* TRUST BADGES SECTION */}
-        <section className="grid grid-cols-1 md:grid-cols-3 gap-6 pt-6 border-t border-[#272734] text-center">
-          <div className="p-6 bg-[#141418] border border-[#272734] rounded-xl flex flex-col items-center">
-            <div className="w-12 h-12 rounded-full bg-[#09090b] border border-[#272734] flex items-center justify-center mb-3 text-[#db4444]">
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="1" y="3" width="15" height="13"/><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>
+        {/* TRUST BADGES SECTION (CLAY SHOP SOFT CARDS) */}
+        <section className="grid grid-cols-1 md:grid-cols-3 gap-6 pt-6 border-t border-[var(--border)] text-center">
+          <div className="p-6 bg-[var(--card)] border border-[var(--card-border)] rounded-3xl shadow-soft flex flex-col items-center">
+            <div className="w-12 h-12 rounded-2xl bg-[var(--accent-clay)] border border-[var(--border)] flex items-center justify-center mb-3 text-[var(--accent-dark)]">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="1" y="3" width="15" height="13"/><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>
             </div>
-            <h4 className="text-sm font-bold text-white uppercase tracking-wider mb-1">FREE DELIVERY</h4>
+            <h4 className="text-xs font-bold text-[var(--foreground)] uppercase tracking-wider mb-1">Express Delivery</h4>
+            <p className="text-xs text-[var(--muted)]">Fast and secure shipping across Nigeria</p>
           </div>
-          <div className="p-6 bg-[#141418] border border-[#272734] rounded-xl flex flex-col items-center">
-            <div className="w-12 h-12 rounded-full bg-[#09090b] border border-[#272734] flex items-center justify-center mb-3 text-[#db4444]">
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 18v-6a9 9 0 0 1 18 0v6"/><path d="M21 19a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3zM3 19a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3z"/></svg>
+          <div className="p-6 bg-[var(--card)] border border-[var(--card-border)] rounded-3xl shadow-soft flex flex-col items-center">
+            <div className="w-12 h-12 rounded-2xl bg-[var(--accent-clay)] border border-[var(--border)] flex items-center justify-center mb-3 text-[var(--accent-dark)]">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 18v-6a9 9 0 0 1 18 0v6"/><path d="M21 19a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3zM3 19a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3z"/></svg>
             </div>
-            <h4 className="text-sm font-bold text-white uppercase tracking-wider mb-1">24/7 SUPPORT</h4>
+            <h4 className="text-xs font-bold text-[var(--foreground)] uppercase tracking-wider mb-1">24/7 Dedicated Support</h4>
+            <p className="text-xs text-[var(--muted)]">Instant assistance for order tracking</p>
           </div>
-          <div className="p-6 bg-[#141418] border border-[#272734] rounded-xl flex flex-col items-center">
-            <div className="w-12 h-12 rounded-full bg-[#09090b] border border-[#272734] flex items-center justify-center mb-3 text-[#db4444]">
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><polyline points="9 12 11 14 15 10"/></svg>
+          <div className="p-6 bg-[var(--card)] border border-[var(--card-border)] rounded-3xl shadow-soft flex flex-col items-center">
+            <div className="w-12 h-12 rounded-2xl bg-[var(--accent-clay)] border border-[var(--border)] flex items-center justify-center mb-3 text-[var(--accent-dark)]">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><polyline points="9 12 11 14 15 10"/></svg>
             </div>
-            <h4 className="text-sm font-bold text-white uppercase tracking-wider mb-1">MONEY BACK</h4>
+            <h4 className="text-xs font-bold text-[var(--foreground)] uppercase tracking-wider mb-1">Authentic Guarantee</h4>
+            <p className="text-xs text-[var(--muted)]">100% verified original brand items</p>
           </div>
         </section>
 
@@ -1147,45 +1444,48 @@ export default function StorefrontPage({ params }) {
       <AnimatePresence>
         {isAuthModalOpen && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="absolute inset-0 bg-black/80 backdrop-blur-md" onClick={() => setIsAuthModalOpen(false)}></motion.div>
-            <motion.div initial={{ opacity: 0, scale: 0.95, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: 20 }} className="relative bg-[#141418] border border-[#272734] rounded-2xl w-full max-w-md shadow-2xl overflow-hidden">
-              <div className="p-6 border-b border-[#272734] flex justify-between items-center">
-                <h2 className="text-xl font-bold text-white tracking-tight">{authMode === 'login' ? 'Welcome Back' : 'Create Account'}</h2>
-                <button onClick={() => setIsAuthModalOpen(false)} className="text-[#a1a1aa] hover:text-white p-2 rounded-lg hover:bg-[#272734] transition-colors"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="absolute inset-0 bg-black/60 backdrop-blur-xs" onClick={() => setIsAuthModalOpen(false)}></motion.div>
+            <motion.div initial={{ opacity: 0, scale: 0.95, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: 20 }} className="relative bg-[var(--card)] border border-[var(--card-border)] rounded-3xl w-full max-w-md shadow-2xl overflow-hidden p-6 sm:p-8">
+              <div className="flex justify-between items-center pb-4 border-b border-[var(--border)]">
+                <div>
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--accent-dark)] block">Customer Portal</span>
+                  <h2 className="font-editorial text-2xl font-semibold text-[var(--foreground)] mt-0.5">{authMode === 'login' ? 'Welcome Back' : 'Create Account'}</h2>
+                </div>
+                <button onClick={() => setIsAuthModalOpen(false)} className="text-[var(--muted)] hover:text-[var(--foreground)] p-2 rounded-full border border-[var(--border)] hover:bg-[var(--background)] transition-colors"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
               </div>
-              <div className="p-6">
-                {authError && <div className="mb-4 p-3 bg-red-500/10 border border-red-500/50 rounded-lg text-red-400 text-sm text-center">{authError}</div>}
+              <div className="pt-6">
+                {authError && <div className="mb-4 p-3 bg-red-500/10 border border-red-500/30 rounded-2xl text-red-500 text-xs font-semibold text-center">{authError}</div>}
                 
                 <form onSubmit={handleAuthSubmit} className="space-y-4">
                   {authMode === 'register' && (
                     <>
                       <div>
-                        <label className="block text-xs font-semibold text-[#a1a1aa] uppercase tracking-wider mb-1.5">Full Name</label>
-                        <input required type="text" value={authForm.name} onChange={e => setAuthForm({...authForm, name: e.target.value})} className="w-full bg-[#09090b] border border-[#272734] rounded-xl px-4 py-3 text-white focus:outline-none focus:border-[#db4444] transition-colors" placeholder="John Doe" />
+                        <label className="block text-xs font-semibold text-[var(--muted)] uppercase tracking-wider mb-1.5">Full Name</label>
+                        <input required type="text" value={authForm.name} onChange={e => setAuthForm({...authForm, name: e.target.value})} className="w-full bg-[var(--background)] border border-[var(--border)] rounded-2xl px-4 py-3 text-xs text-[var(--foreground)] focus:outline-none focus:border-[var(--accent)] transition-colors" placeholder="John Doe" />
                       </div>
                       <div>
-                        <label className="block text-xs font-semibold text-[#a1a1aa] uppercase tracking-wider mb-1.5">Phone</label>
-                        <input type="text" value={authForm.phone} onChange={e => setAuthForm({...authForm, phone: e.target.value})} className="w-full bg-[#09090b] border border-[#272734] rounded-xl px-4 py-3 text-white focus:outline-none focus:border-[#db4444] transition-colors" placeholder="+1234567890" />
+                        <label className="block text-xs font-semibold text-[var(--muted)] uppercase tracking-wider mb-1.5">Phone</label>
+                        <input type="text" value={authForm.phone} onChange={e => setAuthForm({...authForm, phone: e.target.value})} className="w-full bg-[var(--background)] border border-[var(--border)] rounded-2xl px-4 py-3 text-xs text-[var(--foreground)] focus:outline-none focus:border-[var(--accent)] transition-colors" placeholder="+234..." />
                       </div>
                     </>
                   )}
                   <div>
-                    <label className="block text-xs font-semibold text-[#a1a1aa] uppercase tracking-wider mb-1.5">Email Address</label>
-                    <input required type="email" value={authForm.email} onChange={e => setAuthForm({...authForm, email: e.target.value})} className="w-full bg-[#09090b] border border-[#272734] rounded-xl px-4 py-3 text-white focus:outline-none focus:border-[#db4444] transition-colors" placeholder="you@example.com" />
+                    <label className="block text-xs font-semibold text-[var(--muted)] uppercase tracking-wider mb-1.5">Email Address</label>
+                    <input required type="email" value={authForm.email} onChange={e => setAuthForm({...authForm, email: e.target.value})} className="w-full bg-[var(--background)] border border-[var(--border)] rounded-2xl px-4 py-3 text-xs text-[var(--foreground)] focus:outline-none focus:border-[var(--accent)] transition-colors" placeholder="you@example.com" />
                   </div>
                   <div>
-                    <label className="block text-xs font-semibold text-[#a1a1aa] uppercase tracking-wider mb-1.5">Password</label>
-                    <input required type="password" value={authForm.password} onChange={e => setAuthForm({...authForm, password: e.target.value})} className="w-full bg-[#09090b] border border-[#272734] rounded-xl px-4 py-3 text-white focus:outline-none focus:border-[#db4444] transition-colors" placeholder="••••••••" />
+                    <label className="block text-xs font-semibold text-[var(--muted)] uppercase tracking-wider mb-1.5">Password</label>
+                    <input required type="password" value={authForm.password} onChange={e => setAuthForm({...authForm, password: e.target.value})} className="w-full bg-[var(--background)] border border-[var(--border)] rounded-2xl px-4 py-3 text-xs text-[var(--foreground)] focus:outline-none focus:border-[var(--accent)] transition-colors" placeholder="••••••••" />
                   </div>
                   
-                  <button type="submit" disabled={authLoading} className="w-full bg-[#db4444] hover:bg-[#b93838] text-white font-bold py-3.5 px-4 rounded-xl transition-all disabled:opacity-50 mt-4">
-                    {authLoading ? 'Please wait...' : (authMode === 'login' ? 'Sign In' : 'Create Account')}
+                  <button type="submit" disabled={authLoading} className="btn-clay w-full py-3.5 mt-4 text-xs font-bold uppercase tracking-wider disabled:opacity-50">
+                    {authLoading ? 'Please wait...' : (authMode === 'login' ? 'Sign In to Account' : 'Complete Registration')}
                   </button>
                 </form>
                 
-                <div className="mt-6 text-center text-sm text-[#a1a1aa]">
+                <div className="mt-6 text-center text-xs text-[var(--muted)]">
                   {authMode === 'login' ? "Don't have an account? " : "Already have an account? "}
-                  <button type="button" onClick={() => { setAuthMode(authMode === 'login' ? 'register' : 'login'); setAuthError(''); }} className="text-[#db4444] hover:text-[#b93838] font-bold">
+                  <button type="button" onClick={() => { setAuthMode(authMode === 'login' ? 'register' : 'login'); setAuthError(''); }} className="text-[var(--accent-dark)] font-bold hover:underline ml-1">
                     {authMode === 'login' ? 'Sign up' : 'Log in'}
                   </button>
                 </div>
@@ -1199,70 +1499,65 @@ export default function StorefrontPage({ params }) {
       <AnimatePresence>
         {isAccountModalOpen && customer && (
           <>
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-black/70 backdrop-blur-sm z-40" onClick={() => setIsAccountModalOpen(false)}></motion.div>
-            <motion.div initial={{ x: '100%' }} animate={{ x: 0 }} exit={{ x: '100%' }} transition={{ type: 'spring', damping: 25, stiffness: 200 }} className="fixed inset-y-0 right-0 w-full md:w-[450px] bg-[#09090b] border-l border-[#272734] z-50 flex flex-col shadow-2xl">
-              <div className="flex items-center justify-between p-6 border-b border-[#272734] bg-[#141418]">
-                <h2 className="text-xl font-bold tracking-tight text-white flex items-center gap-3">
-                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-black/60 backdrop-blur-xs z-40" onClick={() => setIsAccountModalOpen(false)}></motion.div>
+            <motion.div initial={{ x: '100%' }} animate={{ x: 0 }} exit={{ x: '100%' }} transition={{ type: 'spring', damping: 25, stiffness: 200 }} className="fixed inset-y-0 right-0 w-full md:w-[450px] bg-[var(--surface)] border-l border-[var(--border)] z-50 flex flex-col shadow-2xl">
+              <div className="flex items-center justify-between p-6 border-b border-[var(--border)] bg-[var(--card)]">
+                <h2 className="font-editorial text-2xl font-semibold text-[var(--foreground)] flex items-center gap-3">
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
                   My Account
                 </h2>
-                <button onClick={() => setIsAccountModalOpen(false)} className="p-2 text-[#a1a1aa] hover:text-white hover:bg-[#272734] rounded-lg transition-colors"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+                <button onClick={() => setIsAccountModalOpen(false)} className="p-2 text-[var(--muted)] hover:text-[var(--foreground)] rounded-full border border-[var(--border)] hover:bg-[var(--background)] transition-colors"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
               </div>
 
-              <div className="flex-1 overflow-y-auto p-6 scrollbar-thin scrollbar-thumb-[#272734] scrollbar-track-transparent space-y-8">
+              <div className="flex-1 overflow-y-auto p-6 space-y-8">
                 <div>
-                  <h3 className="text-[#a1a1aa] text-xs font-bold uppercase tracking-wider mb-4">Profile Details</h3>
-                  <div className="bg-[#141418] border border-[#272734] rounded-xl p-4 flex justify-between items-center">
+                  <h3 className="text-[var(--muted)] text-xs font-bold uppercase tracking-wider mb-3">Profile Details</h3>
+                  <div className="bg-[var(--card)] border border-[var(--border)] rounded-2xl p-4 flex justify-between items-center shadow-xs">
                     <div>
-                      <p className="font-bold text-white text-lg">{customer.name || customer.email.split('@')[0]}</p>
-                      <p className="text-sm text-[#a1a1aa]">{customer.email}</p>
+                      <p className="font-bold text-[var(--foreground)] text-base">{customer.name || customer.email.split('@')[0]}</p>
+                      <p className="text-xs text-[var(--muted)]">{customer.email}</p>
                     </div>
-                    <button onClick={logoutCustomer} className="text-sm px-3 py-1.5 border border-[#272734] rounded-lg text-white hover:bg-[#db4444] hover:border-[#db4444] transition-colors">Sign Out</button>
+                    <button onClick={logoutCustomer} className="text-xs font-semibold px-3 py-1.5 border border-[var(--border)] rounded-full text-[var(--muted)] hover:text-[var(--foreground)] hover:bg-[var(--background)] transition-colors">Sign Out</button>
                   </div>
                 </div>
 
                 <div>
-                  <h3 className="text-[#a1a1aa] text-xs font-bold uppercase tracking-wider mb-4">Order History</h3>
+                  <h3 className="text-[var(--muted)] text-xs font-bold uppercase tracking-wider mb-3">Order History</h3>
                   {customerOrders.length === 0 ? (
-                    <div className="text-center py-12 bg-[#141418] border border-[#272734] rounded-xl border-dashed">
-                      <svg className="w-12 h-12 mx-auto text-[#272734] mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"/></svg>
-                      <p className="text-[#a1a1aa]">You haven't placed any orders yet.</p>
-                      <button onClick={() => setIsAccountModalOpen(false)} className="mt-4 text-[#db4444] hover:text-[#b93838] font-bold text-sm">Start Shopping &rarr;</button>
+                    <div className="text-center py-12 bg-[var(--card-clay)] border border-[var(--border)] rounded-2xl border-dashed">
+                      <svg className="w-10 h-10 mx-auto text-[var(--muted)] mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"/></svg>
+                      <p className="text-xs text-[var(--muted)]">You haven't placed any orders yet.</p>
+                      <button onClick={() => setIsAccountModalOpen(false)} className="mt-3 text-[var(--accent-dark)] font-bold text-xs hover:underline">Start Shopping &rarr;</button>
                     </div>
                   ) : (
                     <div className="space-y-4">
                       {customerOrders.map(order => (
-                        <div key={order.id} className="bg-[#141418] border border-[#272734] rounded-xl overflow-hidden">
-                          <div className="p-4 border-b border-[#272734] bg-[#1a1a20] flex justify-between items-start">
+                        <div key={order.id} className="bg-[var(--card)] border border-[var(--border)] rounded-2xl overflow-hidden shadow-xs">
+                          <div className="p-4 border-b border-[var(--border)] bg-[var(--card-clay)] flex justify-between items-start">
                             <div>
-                              <p className="text-xs text-[#a1a1aa] font-mono mb-1">#{order.id.slice(0,8).toUpperCase()}</p>
-                              <p className="text-sm font-medium text-white">{new Date(order.created_at).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })}</p>
+                              <p className="text-[10px] text-[var(--muted)] font-mono mb-0.5">#{order.id.slice(0,8).toUpperCase()}</p>
+                              <p className="text-xs font-medium text-[var(--foreground)]">{new Date(order.created_at).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })}</p>
                             </div>
                             <div className="text-right">
-                              <span className={`inline-block px-2 py-1 rounded text-xs font-bold uppercase tracking-wider ${
-                                order.status === 'delivered' ? 'bg-green-500/10 text-green-400' : 
-                                order.status === 'cancelled' ? 'bg-red-500/10 text-red-400' :
-                                'bg-yellow-500/10 text-yellow-400'
+                              <span className={`inline-block px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${
+                                order.status === 'delivered' ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400' : 
+                                order.status === 'cancelled' ? 'bg-red-500/10 text-red-600 dark:text-red-400' :
+                                'bg-amber-500/10 text-amber-600 dark:text-amber-400'
                               }`}>
                                 {order.status}
                               </span>
-                              <p className="text-sm font-bold text-white mt-1">₦{Number(order.total_amount).toLocaleString()}</p>
+                              <p className="text-xs font-bold font-mono text-[var(--foreground)] mt-1">{formatNaira(order.total_amount)}</p>
                             </div>
                           </div>
                           <div className="p-4 space-y-3">
                             {order.items.map((item, idx) => (
-                              <div key={idx} className="flex justify-between items-center text-sm">
-                                <div className="flex items-center gap-3">
-                                  <div className="w-10 h-10 bg-[#09090b] rounded-lg border border-[#272734] flex items-center justify-center text-[#a1a1aa] overflow-hidden">
-                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
-                                  </div>
-                                  <div>
-                                    <p className="text-white">Product #{item.product_id}</p>
-                                    {item.variant_info && <p className="text-xs text-[#a1a1aa]">{item.variant_info.name}: {item.variant_info.value}</p>}
-                                  </div>
+                              <div key={idx} className="flex justify-between items-center text-xs">
+                                <div>
+                                  <p className="text-[var(--foreground)] font-semibold">Product #{item.product_id}</p>
+                                  {item.variant_info && <p className="text-[10px] text-[var(--muted)]">{item.variant_info.name}: {item.variant_info.value}</p>}
                                 </div>
-                                <div className="text-right">
-                                  <p className="text-[#a1a1aa]">x{item.quantity}</p>
+                                <div className="text-right font-mono text-[var(--muted)]">
+                                  <span>x{item.quantity}</span>
                                 </div>
                               </div>
                             ))}
@@ -1282,62 +1577,67 @@ export default function StorefrontPage({ params }) {
       <AnimatePresence>
         {isCartOpen && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-50 flex justify-end">
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-black/70 backdrop-blur-sm" onClick={() => setIsCartOpen(false)}></motion.div>
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-black/60 backdrop-blur-xs" onClick={() => setIsCartOpen(false)}></motion.div>
             
-            <motion.div initial={{ x: '100%' }} animate={{ x: 0 }} exit={{ x: '100%' }} transition={{ type: 'spring', damping: 25, stiffness: 200 }} className="relative w-full max-w-md bg-[#141418] border-l border-[#272734] h-full flex flex-col z-10 shadow-2xl">
-              <div className="p-5 border-b border-[#272734] flex items-center justify-between">
-              <div>
-                <h3 className="text-base font-bold text-white">Your Cart</h3>
-                <p className="text-xs text-[#a1a1aa] font-mono">{cartItemsCount} item(s)</p>
+            <motion.div initial={{ x: '100%' }} animate={{ x: 0 }} exit={{ x: '100%' }} transition={{ type: 'spring', damping: 25, stiffness: 200 }} className="relative w-full max-w-md bg-[var(--surface)] border-l border-[var(--border)] h-full flex flex-col z-10 shadow-2xl">
+              <div className="p-6 border-b border-[var(--border)] flex items-center justify-between bg-[var(--card)]">
+                <div>
+                  <h3 className="font-editorial text-2xl font-semibold text-[var(--foreground)]">Your Shopping Bag</h3>
+                  <p className="text-xs text-[var(--muted)] font-mono">{cartItemsCount} item{cartItemsCount === 1 ? '' : 's'}</p>
+                </div>
+                <button onClick={() => setIsCartOpen(false)} className="p-2 text-[var(--muted)] hover:text-[var(--foreground)] rounded-full border border-[var(--border)] hover:bg-[var(--background)] transition-colors">✕</button>
               </div>
-              <button onClick={() => setIsCartOpen(false)} className="p-2 text-[#a1a1aa] hover:text-white">✕</button>
-            </div>
 
-            <div className="flex-1 overflow-y-auto p-5 space-y-4">
-              {cart.length === 0 ? (
-                <div className="text-center py-12 text-[#a1a1aa]">Cart is empty</div>
-              ) : (
-                cart.map((item, idx) => (
-                  <div key={`${item.product_id}-${item.variant_id || 'base'}-${idx}`} className="relative flex items-center justify-between gap-3 p-3 bg-[#09090b] border border-[#272734] rounded-xl">
-                    <button 
-                      onClick={() => removeFromCart(item.product_id, item.variant_id)} 
-                      className="absolute top-2 right-2 text-[#a1a1aa] hover:text-[#db4444] transition-colors"
-                      title="Remove item"
-                    >
-                      ✕
-                    </button>
-                    <div className="w-12 h-12 rounded-lg bg-[#141418] border border-[#272734] overflow-hidden relative">
-                      {item.image_url && <Image src={item.image_url} alt={item.title} fill sizes="48px" className="object-cover" />}
+              <div className="flex-1 overflow-y-auto p-6 space-y-4">
+                {cart.length === 0 ? (
+                  <div className="text-center py-16 text-[var(--muted)]">
+                    <div className="w-14 h-14 rounded-full bg-[var(--card-clay)] text-[var(--muted)] flex items-center justify-center mx-auto mb-3">
+                      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg>
                     </div>
-                    <div className="flex-1 min-w-0 pr-4">
-                      <h4 className="text-xs font-semibold text-white truncate">{item.title}</h4>
-                      {item.variant_info && (
-                        <p className="text-[10px] text-[#a1a1aa]">{item.variant_info.name}: {item.variant_info.value}</p>
-                      )}
-                      <span className="text-xs font-mono text-[#db4444] block mt-0.5">{formatNaira(item.price)}</span>
-                      <div className="flex items-center gap-2 mt-2">
-                        <button onClick={() => updateQuantity(item.product_id, -1, item.variant_id)} className="px-2 bg-[#272734] rounded text-xs">-</button>
-                        <span className="text-xs">{item.quantity}</span>
-                        <button onClick={() => updateQuantity(item.product_id, 1, item.variant_id)} className="px-2 bg-[#272734] rounded text-xs">+</button>
+                    <p className="font-semibold text-[var(--foreground)] text-sm">Your bag is empty</p>
+                    <p className="text-xs text-[var(--muted)] mt-1">Explore our latest styles and add items to your cart.</p>
+                  </div>
+                ) : (
+                  cart.map((item, idx) => (
+                    <div key={`${item.product_id}-${item.variant_id || 'base'}-${idx}`} className="relative flex items-center justify-between gap-4 p-4 bg-[var(--card)] border border-[var(--border)] rounded-2xl shadow-xs">
+                      <button 
+                        onClick={() => removeFromCart(item.product_id, item.variant_id)} 
+                        className="absolute top-3 right-3 text-[var(--muted)] hover:text-red-500 transition-colors text-xs"
+                        title="Remove item"
+                      >
+                        ✕
+                      </button>
+                      <div className="w-16 h-16 rounded-xl bg-[var(--card-clay)] border border-[var(--border)] overflow-hidden relative flex-shrink-0">
+                        {item.image_url && <Image src={item.image_url} alt={item.title} fill sizes="64px" className="object-cover" />}
+                      </div>
+                      <div className="flex-1 min-w-0 pr-4">
+                        <h4 className="text-xs font-semibold text-[var(--foreground)] truncate">{item.title}</h4>
+                        {item.variant_info && (
+                          <p className="text-[10px] text-[var(--muted)]">{item.variant_info.name}: {item.variant_info.value}</p>
+                        )}
+                        <span className="text-xs font-mono font-bold text-[var(--accent-dark)] block mt-0.5">{formatNaira(item.price)}</span>
+                        <div className="flex items-center gap-2 mt-2">
+                          <button onClick={() => updateQuantity(item.product_id, -1, item.variant_id)} className="w-6 h-6 flex items-center justify-center bg-[var(--background)] border border-[var(--border)] rounded-full text-xs font-bold hover:border-[var(--accent)]">-</button>
+                          <span className="text-xs font-mono font-semibold px-1">{item.quantity}</span>
+                          <button onClick={() => updateQuantity(item.product_id, 1, item.variant_id)} className="w-6 h-6 flex items-center justify-center bg-[var(--background)] border border-[var(--border)] rounded-full text-xs font-bold hover:border-[var(--accent)]">+</button>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                ))
-              )}
-            </div>
+                  ))
+                )}
+              </div>
 
-            {cart.length > 0 && (
-              <div className="p-5 border-t border-[#272734] bg-[#09090b] space-y-3">
-                <div className="pt-4 border-t border-[#272734] space-y-3">
+              {cart.length > 0 && (
+                <div className="p-6 border-t border-[var(--border)] bg-[var(--card)] space-y-4">
                   <div className="flex items-center justify-between text-sm font-bold">
-                    <span className="text-[#a1a1aa]">Total:</span>
-                    <span className="text-lg font-mono text-[#db4444]">{formatNaira(cartTotal)}</span>
+                    <span className="text-[var(--muted)]">Subtotal:</span>
+                    <span className="text-xl font-mono text-[var(--accent-dark)]">{formatNaira(cartTotal)}</span>
                   </div>
 
                   <button
                     onClick={initiatePayment}
                     disabled={paymentLoading}
-                    className="press w-full py-3 bg-[#db4444] hover:bg-[#e53838] text-white font-bold text-xs uppercase tracking-wider rounded-lg shadow-sm transition-all flex items-center justify-center"
+                    className="btn-clay w-full py-4 text-xs uppercase tracking-wider font-bold shadow-md disabled:opacity-50"
                   >
                     {paymentLoading ? (
                       <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
@@ -1346,8 +1646,7 @@ export default function StorefrontPage({ params }) {
                     )}
                   </button>
                 </div>
-              </div>
-            )}
+              )}
             </motion.div>
           </motion.div>
         )}
@@ -1378,25 +1677,25 @@ export default function StorefrontPage({ params }) {
                 </div>
               ) : (
                 products.filter(p => wishlist.includes(p.id)).map(product => (
-                  <div key={product.id} className="flex items-center justify-between gap-3 p-3 bg-[#181824] border border-[#272734] rounded-xl">
-                    <div className="w-12 h-12 rounded-lg bg-[#09090b] overflow-hidden border border-[#272734] flex items-center justify-center relative">
+                  <div key={product.id} className="flex items-center justify-between gap-3 p-3.5 bg-[var(--card)] border border-[var(--border)] rounded-2xl shadow-xs">
+                    <div className="w-14 h-14 rounded-xl bg-[var(--card-clay)] overflow-hidden border border-[var(--border)] flex items-center justify-center relative flex-shrink-0">
                       {product.image_url ? (
-                        <Image src={product.image_url} alt={product.title} fill sizes="48px" className="object-cover" />
+                        <Image src={product.image_url} alt={product.title} fill sizes="56px" className="object-cover" />
                       ) : (
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-[#a1a1aa]"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-[var(--muted)]"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>
                       )}
                     </div>
                     
                     <div className="flex-1 min-w-0">
-                      <h4 className="text-xs font-semibold text-white truncate">{product.title}</h4>
-                      <span className="text-xs font-mono text-[#db4444]">{formatNaira(product.price)}</span>
+                      <h4 className="text-xs font-semibold text-[var(--foreground)] truncate">{product.title}</h4>
+                      <span className="text-xs font-mono font-bold text-[var(--accent-dark)]">{formatNaira(product.price)}</span>
                     </div>
 
                     <button 
                       onClick={() => { addToCart(product); toggleWishlist(product.id); }}
-                      className="px-3 py-1.5 bg-[#db4444] text-white text-[10px] font-bold uppercase rounded"
+                      className="btn-clay text-[10px] py-1.5 px-3 uppercase tracking-wider"
                     >
-                      Add To Cart
+                      Shop Now
                     </button>
                   </div>
                 ))
@@ -1410,39 +1709,39 @@ export default function StorefrontPage({ params }) {
       {/* STRIPE PAYMENT CONFIRMATION MODAL (DEMO / SCAFFOLDING MODE) */}
       {isPaymentModalOpen && paymentSuccess && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="fixed inset-0 bg-black/80 backdrop-blur-md" onClick={() => setIsPaymentModalOpen(false)}></div>
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-xs" onClick={() => setIsPaymentModalOpen(false)}></div>
           
-          <div className="relative bg-[#141418] border border-[#272734] rounded-2xl p-6 sm:p-8 max-w-md w-full z-10 text-center shadow-2xl space-y-4 animate-in zoom-in-95 duration-200">
-            <div className="w-16 h-16 bg-[#22c55e]/10 text-[#22c55e] border border-[#22c55e]/30 rounded-full flex items-center justify-center text-3xl mx-auto">
-              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+          <div className="relative bg-[var(--card)] border border-[var(--card-border)] rounded-3xl p-6 sm:p-8 max-w-md w-full z-10 text-center shadow-2xl space-y-4 animate-in zoom-in-95 duration-200">
+            <div className="w-16 h-16 bg-[var(--accent-clay)] text-[var(--accent-dark)] border border-[var(--border)] rounded-full flex items-center justify-center text-3xl mx-auto">
+              <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="20 6 9 17 4 12"/></svg>
             </div>
             
-            <h3 className="text-xl font-extrabold text-white">Payment Checkout Scaffolding Active</h3>
+            <h3 className="font-editorial text-2xl font-semibold text-[var(--foreground)]">Order Confirmed!</h3>
             
-            <div className="p-4 bg-[#09090b] border border-[#272734] rounded-xl text-left space-y-2 font-mono text-xs">
+            <div className="p-4 bg-[var(--background)] border border-[var(--border)] rounded-2xl text-left space-y-2 font-mono text-xs">
               <div className="flex justify-between">
-                <span className="text-[#a1a1aa]">Order ID:</span>
-                <span className="text-white font-bold">{paymentSuccess.orderId?.substring(0, 8)}...</span>
+                <span className="text-[var(--muted)]">Order ID:</span>
+                <span className="text-[var(--foreground)] font-bold">{paymentSuccess.orderId?.substring(0, 8)}...</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-[#a1a1aa]">Total Paid:</span>
-                <span className="text-[#db4444] font-bold">{formatNaira(paymentSuccess.totalAmount)}</span>
+                <span className="text-[var(--muted)]">Total Paid:</span>
+                <span className="text-[var(--accent-dark)] font-bold">{formatNaira(paymentSuccess.totalAmount)}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-[#a1a1aa]">Gateway:</span>
-                <span className="text-emerald-400">Stripe NGN (Test Mode)</span>
+                <span className="text-[var(--muted)]">Gateway:</span>
+                <span className="text-emerald-600 dark:text-emerald-400 font-bold">Stripe NGN (Direct Checkout)</span>
               </div>
             </div>
 
-            <p className="text-xs text-[#a1a1aa] leading-relaxed">
+            <p className="text-xs text-[var(--muted)] leading-relaxed">
               {paymentSuccess.message}
             </p>
 
             <button 
               onClick={() => setIsPaymentModalOpen(false)}
-              className="press w-full py-3 bg-[#db4444] text-white font-bold text-xs uppercase tracking-wider rounded-lg shadow-lg"
+              className="btn-clay w-full py-3.5 text-xs uppercase tracking-wider font-bold"
             >
-              Done / Return to Store
+              Done / Return to Catalog
             </button>
           </div>
         </div>
@@ -1468,12 +1767,12 @@ export default function StorefrontPage({ params }) {
 
           return (
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-50 flex items-center justify-center p-4">
-              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-black/80 backdrop-blur-sm" onClick={() => setSelectedDetailProduct(null)}></motion.div>
+              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-black/60 backdrop-blur-xs" onClick={() => setSelectedDetailProduct(null)}></motion.div>
               
-              <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }} transition={{ type: 'spring', damping: 25, stiffness: 200 }} className="relative bg-[#141418] border border-[#272734] rounded-2xl p-6 sm:p-8 max-w-3xl w-full z-10 shadow-2xl max-h-[90vh] overflow-y-auto">
+              <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }} transition={{ type: 'spring', damping: 25, stiffness: 200 }} className="relative bg-[var(--surface)] border border-[var(--border)] rounded-3xl p-6 sm:p-8 max-w-3xl w-full z-10 shadow-2xl max-h-[90vh] overflow-y-auto">
               <button 
                 onClick={() => setSelectedDetailProduct(null)} 
-                className="absolute top-4 right-4 p-2 text-[#a1a1aa] hover:text-white transition-colors"
+                className="absolute top-4 right-4 p-2 text-[var(--muted)] hover:text-[var(--foreground)] rounded-full border border-[var(--border)] hover:bg-[var(--background)] transition-colors"
               >
                 ✕
               </button>
@@ -1481,11 +1780,11 @@ export default function StorefrontPage({ params }) {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6 sm:gap-8">
                 {/* Image Gallery Column */}
                 <div className="space-y-3">
-                  <div className="aspect-square bg-[#181824] border border-[#272734] rounded-xl overflow-hidden flex items-center justify-center p-4 relative">
+                  <div className="aspect-square bg-[var(--card-clay)] border border-[var(--border)] rounded-2xl overflow-hidden flex items-center justify-center p-4 relative shadow-soft">
                     {mainImg ? (
-                      <Image src={mainImg} alt={selectedDetailProduct.title} fill sizes="(max-width: 768px) 100vw, 50vw" className="object-cover rounded-lg" />
+                      <Image src={mainImg} alt={selectedDetailProduct.title} fill sizes="(max-width: 768px) 100vw, 50vw" className="object-cover rounded-xl" />
                     ) : (
-                      <div className="text-[#a1a1aa] text-xs">No Image Preview</div>
+                      <div className="text-[var(--muted)] text-xs font-mono">No Image Preview</div>
                     )}
                   </div>
 
@@ -1496,8 +1795,8 @@ export default function StorefrontPage({ params }) {
                         <button
                           key={i}
                           onClick={() => setActiveDetailImage(imgUrl)}
-                          className={`w-14 h-14 rounded-lg overflow-hidden border-2 transition-all flex-shrink-0 bg-[#09090b] relative ${
-                            mainImg === imgUrl ? 'border-[#db4444] scale-95' : 'border-[#272734] opacity-70 hover:opacity-100'
+                          className={`w-14 h-14 rounded-xl overflow-hidden border-2 transition-all flex-shrink-0 bg-[var(--card-clay)] relative ${
+                            mainImg === imgUrl ? 'border-[var(--accent)] scale-95' : 'border-[var(--border)] opacity-70 hover:opacity-100'
                           }`}
                         >
                           <Image src={imgUrl} alt="Thumbnail" fill sizes="56px" className="object-cover" />
@@ -1511,45 +1810,45 @@ export default function StorefrontPage({ params }) {
                 <div className="flex flex-col justify-between space-y-4">
                   <div className="space-y-3">
                     <div className="flex items-center justify-between">
-                      <span className="px-2.5 py-1 bg-[#181824] border border-[#272734] text-[10px] font-mono font-bold uppercase tracking-wider text-[#a1a1aa] rounded-md">
-                        {selectedDetailProduct.category || 'General'}
+                      <span className="px-3 py-1 bg-[var(--accent-clay)] border border-[var(--border)] text-[10px] font-mono font-bold uppercase tracking-wider text-[var(--accent-dark)] rounded-full">
+                        {selectedDetailProduct.category || 'Curated'}
                       </span>
-                      <span className="text-xs font-mono text-[#22c55e]">
+                      <span className="text-xs font-mono font-bold text-emerald-600 dark:text-emerald-400">
                         {selectedDetailProduct.stock > 0 ? `In Stock (${selectedDetailProduct.stock} units)` : 'Out of Stock'}
                       </span>
                     </div>
 
-                    <h2 className="text-xl sm:text-2xl font-extrabold text-white tracking-tight leading-snug">
+                    <h2 className="font-editorial text-2xl sm:text-3xl font-semibold text-[var(--foreground)] tracking-tight leading-snug">
                       {selectedDetailProduct.title}
                     </h2>
 
                     {/* Price & Strikethrough */}
-                    <div className="flex items-center gap-3 font-mono">
-                      <span className="text-2xl font-black text-[#db4444]">{formatNaira(selectedDetailProduct.price)}</span>
-                      <span className="text-sm text-[#a1a1aa] line-through">{formatNaira(originalPrice)}</span>
-                      <span className="bg-[#db4444]/20 text-[#db4444] border border-[#db4444]/30 text-xs font-bold px-2 py-0.5 rounded">
+                    <div className="flex items-baseline gap-3">
+                      <span className="text-2xl font-black font-mono text-[var(--accent-dark)]">{formatNaira(selectedDetailProduct.price)}</span>
+                      <span className="text-xs text-[var(--muted)] line-through">{formatNaira(originalPrice)}</span>
+                      <span className="bg-[var(--accent)] text-white text-[10px] font-bold px-2 py-0.5 rounded-full shadow-xs">
                         -{discountPercent}% OFF
                       </span>
                     </div>
 
                     {/* Ratings */}
-                    <div className="flex items-center gap-2 text-xs text-[#a1a1aa]">
+                    <div className="flex items-center gap-2 text-xs text-[var(--muted)]">
                       <div className="flex text-amber-400">★★★★☆</div>
                       <span>({selectedDetailProduct.review_count || 12} customer reviews)</span>
                       <button 
                         onClick={() => { setSelectedDetailProduct(null); openReviewModal(selectedDetailProduct); }} 
-                        className="text-[#db4444] hover:underline font-semibold ml-2"
+                        className="text-[var(--accent-dark)] hover:underline font-bold ml-2"
                       >
                         Read Reviews
                       </button>
                     </div>
 
-                    <div className="border-t border-[#272734] my-2"></div>
+                    <div className="border-t border-[var(--border)] my-2"></div>
 
                     {/* Detailed Item Description */}
                     <div>
-                      <h4 className="text-xs font-bold uppercase tracking-wider text-[#a1a1aa] mb-2">Item Overview & Specs</h4>
-                      <p className="text-xs text-[#fafafa]/80 leading-relaxed whitespace-pre-line bg-[#09090b] p-3 border border-[#272734] rounded-lg">
+                      <h4 className="text-xs font-bold uppercase tracking-wider text-[var(--foreground)] mb-2">Item Overview & Specs</h4>
+                      <p className="text-xs text-[var(--muted)] leading-relaxed whitespace-pre-line bg-[var(--card)] p-3.5 border border-[var(--border)] rounded-2xl">
                         {selectedDetailProduct.description || 'Premium build quality and high performance. Built with durable materials for long-lasting performance and reliability.'}
                       </p>
                     </div>
@@ -1557,8 +1856,8 @@ export default function StorefrontPage({ params }) {
 
                   {/* Variants */}
                   {selectedDetailProduct.variants && selectedDetailProduct.variants.length > 0 && (
-                    <div className="mt-4 pt-4 border-t border-[#272734]">
-                      <h4 className="text-xs font-bold uppercase tracking-wider text-[#a1a1aa] mb-3">Available Options</h4>
+                    <div className="mt-4 pt-4 border-t border-[var(--border)]">
+                      <h4 className="text-xs font-bold uppercase tracking-wider text-[var(--foreground)] mb-3">Available Options</h4>
                       <div className="flex flex-wrap gap-2">
                         {selectedDetailProduct.variants.map((v, i) => {
                           const isSelected = selectedVariant?.id === v.id;
@@ -1567,8 +1866,8 @@ export default function StorefrontPage({ params }) {
                             <button
                               key={v.id || i}
                               onClick={() => setSelectedVariant(v)}
-                              className={`px-3 py-2 text-xs font-semibold rounded-lg border transition-all ${
-                                isSelected ? 'bg-[#db4444] border-[#db4444] text-white' : 'bg-[#181824] border-[#272734] text-[#a1a1aa] hover:border-[#db4444] hover:text-white'
+                              className={`px-3.5 py-2 text-xs font-semibold rounded-xl border transition-all ${
+                                isSelected ? 'bg-[var(--accent)] border-[var(--accent)] text-white shadow-xs' : 'bg-[var(--card)] border-[var(--border)] text-[var(--muted)] hover:border-[var(--accent)] hover:text-[var(--foreground)]'
                               }`}
                             >
                               {v.name}: {v.value} {variantPriceStr}
@@ -1580,19 +1879,19 @@ export default function StorefrontPage({ params }) {
                   )}
 
                   {/* Actions */}
-                  <div className="pt-4 border-t border-[#272734] flex items-center gap-3">
+                  <div className="pt-4 border-t border-[var(--border)] flex items-center gap-3">
                     <button
                       onClick={() => { addToCart(selectedDetailProduct, selectedVariant); }}
                       disabled={(selectedVariant ? selectedVariant.stock : selectedDetailProduct.stock) === 0}
-                      className="press flex-1 py-3 bg-[#db4444] hover:bg-[#e53838] text-white font-bold text-xs uppercase tracking-wider rounded-lg shadow-sm transition-all disabled:opacity-50"
+                      className="btn-clay flex-1 py-3.5 text-xs uppercase tracking-wider font-bold disabled:opacity-50"
                     >
-                      {(selectedVariant ? selectedVariant.stock : selectedDetailProduct.stock) > 0 ? 'Add To Cart' : 'Out of Stock'}
+                      {(selectedVariant ? selectedVariant.stock : selectedDetailProduct.stock) > 0 ? 'Shop Now' : 'Out of Stock'}
                     </button>
 
                     <button
                       onClick={() => toggleWishlist(selectedDetailProduct.id)}
-                      className={`p-3 rounded-lg border transition-all ${
-                        isWishlisted ? 'bg-[#db4444] border-[#db4444] text-white' : 'bg-[#181824] border-[#272734] text-[#a1a1aa] hover:text-white'
+                      className={`p-3 rounded-2xl border transition-all ${
+                        isWishlisted ? 'bg-[var(--accent)] border-[var(--accent)] text-white shadow-xs' : 'bg-[var(--card)] border-[var(--border)] text-[var(--muted)] hover:text-[var(--foreground)]'
                       }`}
                     >
                       <svg width="20" height="20" viewBox="0 0 24 24" fill={isWishlisted ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="2">
@@ -1612,42 +1911,42 @@ export default function StorefrontPage({ params }) {
       <AnimatePresence>
         {reviewProduct && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-50 flex items-center justify-center p-4">
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-black/80 backdrop-blur-sm" onClick={() => setReviewProduct(null)}></motion.div>
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-black/60 backdrop-blur-xs" onClick={() => setReviewProduct(null)}></motion.div>
             
-            <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }} transition={{ type: 'spring', damping: 25, stiffness: 200 }} className="relative bg-[#141418] border border-[#272734] rounded-2xl p-6 sm:p-8 max-w-lg w-full z-10 shadow-2xl space-y-5 max-h-[90vh] flex flex-col">
-              <div className="flex items-center justify-between border-b border-[#272734] pb-4">
+            <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }} transition={{ type: 'spring', damping: 25, stiffness: 200 }} className="relative bg-[var(--surface)] border border-[var(--border)] rounded-3xl p-6 sm:p-8 max-w-lg w-full z-10 shadow-2xl space-y-5 max-h-[90vh] flex flex-col">
+              <div className="flex items-center justify-between border-b border-[var(--border)] pb-4">
               <div>
-                <h3 className="text-base font-extrabold text-white">{reviewProduct.title}</h3>
-                <div className="flex items-center gap-2 text-xs text-[#a1a1aa]">
-                  <span className="text-amber-400">★ {reviewProduct.rating || 4.5}</span>
-                  <span>({reviewsList.length} reviews)</span>
+                <h3 className="font-editorial text-xl font-semibold text-[var(--foreground)]">{reviewProduct.title}</h3>
+                <div className="flex items-center gap-2 text-xs text-[var(--muted)]">
+                  <span className="text-amber-400 font-bold">★ {reviewProduct.rating || 4.5}</span>
+                  <span>({reviewsList.length} review{reviewsList.length === 1 ? '' : 's'})</span>
                 </div>
               </div>
-              <button onClick={() => setReviewProduct(null)} className="text-[#a1a1aa] hover:text-white">✕</button>
+              <button onClick={() => setReviewProduct(null)} className="p-2 text-[var(--muted)] hover:text-[var(--foreground)] rounded-full border border-[var(--border)]">✕</button>
             </div>
 
             {/* Leave a Review Form */}
-            <form onSubmit={handleReviewSubmit} className="p-4 bg-[#09090b] border border-[#272734] rounded-xl space-y-3">
-              <h4 className="text-xs font-bold uppercase tracking-wider text-white">Write a Customer Review</h4>
+            <form onSubmit={handleReviewSubmit} className="p-4 bg-[var(--card)] border border-[var(--border)] rounded-2xl space-y-3">
+              <h4 className="text-xs font-bold uppercase tracking-wider text-[var(--foreground)]">Write a Customer Review</h4>
               
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="text-[11px] text-[#a1a1aa] block mb-1">Your Name</label>
+                  <label className="text-[11px] text-[var(--muted)] block mb-1">Your Name</label>
                   <input 
                     type="text" 
                     required 
                     placeholder="e.g. John D."
                     value={newReview.authorName}
                     onChange={e => setNewReview({ ...newReview, authorName: e.target.value })}
-                    className="w-full px-3 py-1.5 bg-[#141418] border border-[#272734] rounded text-xs text-white outline-none focus:border-[#db4444]"
+                    className="w-full px-3 py-2 bg-[var(--background)] border border-[var(--border)] rounded-xl text-xs text-[var(--foreground)] outline-none focus:border-[var(--accent)]"
                   />
                 </div>
                 <div>
-                  <label className="text-[11px] text-[#a1a1aa] block mb-1">Rating</label>
+                  <label className="text-[11px] text-[var(--muted)] block mb-1">Rating</label>
                   <select 
                     value={newReview.rating}
                     onChange={e => setNewReview({ ...newReview, rating: Number(e.target.value) })}
-                    className="w-full px-3 py-1.5 bg-[#141418] border border-[#272734] rounded text-xs text-white outline-none focus:border-[#db4444]"
+                    className="w-full px-3 py-2 bg-[var(--background)] border border-[var(--border)] rounded-xl text-xs text-[var(--foreground)] outline-none focus:border-[var(--accent)]"
                   >
                     <option value="5">★★★★★ (5 Stars)</option>
                     <option value="4">★★★★☆ (4 Stars)</option>
@@ -1659,21 +1958,21 @@ export default function StorefrontPage({ params }) {
               </div>
 
               <div>
-                <label className="text-[11px] text-[#a1a1aa] block mb-1">Your Review</label>
+                <label className="text-[11px] text-[var(--muted)] block mb-1">Your Review</label>
                 <textarea 
                   required 
                   rows="2"
                   placeholder="Share your experience with this product..."
                   value={newReview.comment}
                   onChange={e => setNewReview({ ...newReview, comment: e.target.value })}
-                  className="w-full px-3 py-1.5 bg-[#141418] border border-[#272734] rounded text-xs text-white outline-none focus:border-[#db4444]"
+                  className="w-full px-3 py-2 bg-[var(--background)] border border-[var(--border)] rounded-xl text-xs text-[var(--foreground)] outline-none focus:border-[var(--accent)]"
                 ></textarea>
               </div>
 
               <button 
                 type="submit" 
                 disabled={submittingReview}
-                className="w-full py-2 bg-[#db4444] hover:bg-[#e53838] text-white font-bold text-xs uppercase tracking-wider rounded transition-all"
+                className="btn-clay w-full py-2.5 text-xs font-bold uppercase tracking-wider"
               >
                 {submittingReview ? 'Submitting...' : 'Submit Verified Review'}
               </button>
@@ -1681,21 +1980,21 @@ export default function StorefrontPage({ params }) {
 
             {/* Existing Customer Reviews List */}
             <div className="flex-1 overflow-y-auto space-y-3 pr-1">
-              <h4 className="text-xs font-bold uppercase tracking-wider text-[#a1a1aa]">Customer Feedback</h4>
+              <h4 className="text-xs font-bold uppercase tracking-wider text-[var(--foreground)]">Customer Feedback</h4>
               
               {reviewLoading ? (
-                <div className="text-xs text-[#a1a1aa] text-center py-4">Loading reviews...</div>
+                <div className="text-xs text-[var(--muted)] text-center py-4">Loading reviews...</div>
               ) : reviewsList.length === 0 ? (
-                <div className="text-xs text-[#a1a1aa] text-center py-4">No reviews yet. Be the first to leave a review!</div>
+                <div className="text-xs text-[var(--muted)] text-center py-4">No reviews yet. Be the first to leave a review!</div>
               ) : (
                 reviewsList.map(rev => (
-                  <div key={rev.id} className="p-3 bg-[#181824] border border-[#272734] rounded-lg space-y-1">
+                  <div key={rev.id} className="p-3.5 bg-[var(--card)] border border-[var(--border)] rounded-2xl space-y-1 shadow-xs">
                     <div className="flex items-center justify-between text-xs">
-                      <span className="font-bold text-white">{rev.author_name}</span>
+                      <span className="font-bold text-[var(--foreground)]">{rev.author_name}</span>
                       <span className="text-amber-400">{'★'.repeat(rev.rating)}{'☆'.repeat(5 - rev.rating)}</span>
                     </div>
-                    <p className="text-xs text-[#a1a1aa] leading-relaxed">{rev.comment}</p>
-                    <span className="text-[10px] text-[#a1a1aa] font-mono block">
+                    <p className="text-xs text-[var(--muted)] leading-relaxed">{rev.comment}</p>
+                    <span className="text-[10px] text-[var(--muted)] font-mono block">
                       {new Date(rev.created_at || Date.now()).toLocaleDateString()}
                     </span>
                   </div>
@@ -1703,7 +2002,7 @@ export default function StorefrontPage({ params }) {
               )}
             </div>
           </motion.div>
-        </motion.div>
+          </motion.div>
         )}
       </AnimatePresence>
 
@@ -1716,8 +2015,8 @@ export default function StorefrontPage({ params }) {
               initial={{ opacity: 0, y: 50, scale: 0.3 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, scale: 0.5, transition: { duration: 0.2 } }}
-              className={`px-4 py-3 bg-[#141418] border text-xs font-semibold rounded-lg shadow-2xl pointer-events-auto border-l-4 ${
-                toast.type === 'error' ? 'border-l-red-500 text-red-400 border-[#272734]' : 'border-l-[#db4444] text-white border-[#272734]'
+              className={`px-4 py-3 bg-[var(--card)] border text-xs font-semibold rounded-2xl shadow-xl pointer-events-auto border-l-4 ${
+                toast.type === 'error' ? 'border-l-red-500 text-red-500 border-[var(--border)]' : 'border-l-[var(--accent)] text-[var(--foreground)] border-[var(--border)]'
               }`}
             >
               {toast.message}
@@ -1726,9 +2025,21 @@ export default function StorefrontPage({ params }) {
         </AnimatePresence>
       </div>
 
-      {/* Footer */}
-      <footer className="mt-16 py-8 border-t border-[#272734] bg-[#09090b] text-center text-xs font-mono text-[#a1a1aa]">
-        &copy; {new Date().getFullYear()} {getStoreDisplayName()}. Powered by Mercato Commerce Engine.
+      {/* Footer (Clay Shop Minimal Editorial Footer) */}
+      <footer className="mt-20 py-10 border-t border-[var(--border)] bg-[var(--surface)] text-center text-xs font-medium text-[var(--muted)]">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-4">
+          <p className="font-editorial text-lg text-[var(--foreground)] font-semibold">{getStoreDisplayName()}</p>
+          <p className="text-xs text-[var(--muted)]">
+            &copy; {new Date().getFullYear()} {getStoreDisplayName()}. Crafted with Clay Luxury Commerce Engine.
+          </p>
+          <div className="flex items-center gap-4 text-xs font-semibold text-[var(--muted)]">
+            <span className="hover:text-[var(--foreground)] cursor-pointer">Privacy</span>
+            <span>•</span>
+            <span className="hover:text-[var(--foreground)] cursor-pointer">Terms</span>
+            <span>•</span>
+            <span className="hover:text-[var(--foreground)] cursor-pointer">Contact</span>
+          </div>
+        </div>
       </footer>
     </div>
   );
