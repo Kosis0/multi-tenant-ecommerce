@@ -777,7 +777,14 @@ export default function StorefrontPage({ params }) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           orderId: createdOrder.id,
-          items: cart.map(item => ({ title: item.title, price: item.price, quantity: item.quantity, image_url: item.image_url }))
+          items: cart.map(item => ({ 
+            product_id: item.product_id, 
+            variant_id: item.variant_id, 
+            title: item.title, 
+            price: item.price, 
+            quantity: item.quantity, 
+            image_url: item.image_url 
+          }))
         })
       });
       const checkoutData = await checkoutRes.json();

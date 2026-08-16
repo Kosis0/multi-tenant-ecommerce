@@ -59,22 +59,44 @@ const sendEmail = async (to, subject, html) => {
 
 // Security Headers
 app.use(helmet({
-  crossOriginResourcePolicy: false, // allow images to be loaded
+  crossOriginResourcePolicy: false, // allow images to be loaded across origins
 }));
 
 // Global Rate Limiting
 const globalLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 200, // limit each IP to 200 requests per windowMs
-  message: { success: false, error: 'Too many requests from this IP, please try again later.' }
+  max: 300, // limit each IP to 300 requests per windowMs
+  message: { success: false, error: 'Too many requests from this IP, please try again later.' },
+  standardHeaders: true,
+  legacyHeaders: false
 });
 app.use('/api/', globalLimiter);
 
-// Specific Auth Limiter
+// Specific Auth Limiter (Brute-force protection for login/registration)
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 10, // limit each IP to 10 login/register requests per windowMs
-  message: { success: false, error: 'Too many login attempts, please try again later.' }
+  max: 15, // limit each IP to 15 login/register requests per windowMs
+  message: { success: false, error: 'Too many authentication attempts, please try again later.' },
+  standardHeaders: true,
+  legacyHeaders: false
+});
+
+// Specific Reviews Limiter (Spam prevention)
+const reviewLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 20, // max 20 reviews per IP in 15 minutes
+  message: { success: false, error: 'Too many reviews submitted, please try again later.' },
+  standardHeaders: true,
+  legacyHeaders: false
+});
+
+// Specific Checkout Limiter (Rate-limit order & checkout creation)
+const checkoutLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 30, // max 30 orders/checkout sessions per IP in 15 minutes
+  message: { success: false, error: 'Too many checkout requests, please try again shortly.' },
+  standardHeaders: true,
+  legacyHeaders: false
 });
 
 // Body parser
@@ -86,7 +108,11 @@ const uploadsDir = path.join(__dirname, 'uploads');
 if (!fs.existsSync(uploadsDir)) {
   fs.mkdirSync(uploadsDir, { recursive: true });
 }
-app.use('/uploads', express.static(uploadsDir));
+app.use('/uploads', express.static(uploadsDir, {
+  setHeaders: (res) => {
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+  }
+}));
 
 // Multer storage — uses memory buffer when Cloudinary is configured, disk otherwise
 const useCloudinary = !!process.env.CLOUDINARY_URL;
@@ -127,10 +153,10 @@ const sendError = (res, error, status = 400) => res.status(status).json({ succes
 // Middleware
 const resolveTenant = async (req, res, next) => {
   const slug = req.headers['x-tenant-slug'] || req.query.tenant;
-  if (!slug) return sendError(res, 'Tenant slug required');
+  if (!slug || typeof slug !== 'string') return sendError(res, 'Tenant slug required');
 
   try {
-    const { rows } = await pool.query('SELECT * FROM tenants WHERE slug = $1', [slug]);
+    const { rows } = await pool.query('SELECT * FROM tenants WHERE slug = $1', [slug.toLowerCase().trim()]);
     if (rows.length === 0) return sendError(res, 'Tenant not found', 404);
     req.tenant = rows[0];
     next();
@@ -144,8 +170,8 @@ const authenticateToken = (req, res, next) => {
   const token = authHeader && authHeader.split(' ')[1];
   if (!token) return sendError(res, 'Access denied', 401);
 
-  jwt.verify(token, process.env.JWT_SECRET || 'secret', (err, user) => {
-    if (err) return sendError(res, 'Invalid token', 403);
+  jwt.verify(token, process.env.JWT_SECRET, (err, user) => {
+    if (err) return sendError(res, 'Invalid or expired token', 403);
     req.user = user;
     next();
   });
@@ -173,37 +199,87 @@ const validate = (schema) => (req, res, next) => {
 
 // Validation Schemas
 const registerSchema = z.object({
-  name: z.string().min(2, "Store name must be at least 2 characters"),
-  slug: z.string().min(2, "Store slug must be at least 2 characters").regex(/^[a-z0-9-]+$/, "Slug must contain only lowercase letters, numbers, and hyphens"),
-  email: z.string().email("Invalid email address"),
-  password: z.string().min(6, "Password must be at least 6 characters")
+  name: z.string().trim().min(2, "Store name must be at least 2 characters").max(100),
+  slug: z.string().trim().min(2, "Store slug must be at least 2 characters").max(50).regex(/^[a-z0-9-]+$/, "Slug must contain only lowercase letters, numbers, and hyphens"),
+  email: z.string().trim().email("Invalid email address").max(255),
+  password: z.string().min(8, "Password must be at least 8 characters").max(128)
 });
 
 const loginSchema = z.object({
-  email: z.string().email("Invalid email address"),
-  password: z.string().min(1, "Password is required"),
-  tenantSlug: z.string().optional()
+  email: z.string().trim().email("Invalid email address").max(255),
+  password: z.string().min(1, "Password is required").max(128),
+  tenantSlug: z.string().trim().optional()
+});
+
+const customerRegisterSchema = z.object({
+  name: z.string().trim().min(1, "Name is required").max(100).optional().nullable(),
+  email: z.string().trim().email("Invalid email address").max(255),
+  password: z.string().min(8, "Password must be at least 8 characters").max(128),
+  phone: z.string().trim().max(30).optional().nullable(),
+  address: z.string().trim().max(300).optional().nullable()
+});
+
+const customerLoginSchema = z.object({
+  email: z.string().trim().email("Invalid email address").max(255),
+  password: z.string().min(1, "Password is required").max(128)
 });
 
 const productSchema = z.object({
-  title: z.string().min(1, "Title is required"),
+  title: z.string().trim().min(1, "Title is required").max(200),
   price: z.number().min(0, "Price must be a positive number").or(z.string().regex(/^\d+(\.\d+)?$/).transform(Number)),
-  stock: z.number().min(0, "Stock cannot be negative").or(z.string().regex(/^\d+$/).transform(Number)),
-  image_url: z.string().url("Valid image URL is required").optional().nullable().or(z.literal("")),
-  category: z.string().optional(),
-  description: z.string().optional(),
-  original_price: z.number().nullable().optional().or(z.string().regex(/^\d+(\.\d+)?$/).transform(Number).nullable().optional()),
+  stock: z.number().int().min(0, "Stock cannot be negative").or(z.string().regex(/^\d+$/).transform(Number)),
+  image_url: z.string().trim().url("Valid image URL is required").optional().nullable().or(z.literal("")),
+  category: z.string().trim().max(50).optional(),
+  description: z.string().trim().max(5000).optional(),
+  original_price: z.number().min(0).nullable().optional().or(z.string().regex(/^\d+(\.\d+)?$/).transform(Number).nullable().optional()),
   is_featured: z.boolean().optional(),
   is_new_arrival: z.boolean().optional(),
   discount_percent: z.number().min(0).max(100).optional().or(z.string().regex(/^\d+$/).transform(Number).optional()),
-  flash_sale_units: z.number().min(0).optional().nullable().or(z.string().regex(/^\d+$/).transform(Number).nullable().optional()),
-  images: z.any().optional(),
+  flash_sale_units: z.number().int().min(0).optional().nullable().or(z.string().regex(/^\d+$/).transform(Number).nullable().optional()),
+  images: z.union([z.array(z.string().trim()), z.string()]).optional(),
   variants: z.array(z.object({
-    name: z.string(),
-    value: z.string(),
-    stock: z.number().or(z.string().transform(Number)).optional().default(0),
+    name: z.string().trim().min(1).max(50),
+    value: z.string().trim().min(1).max(50),
+    stock: z.number().int().min(0).or(z.string().transform(Number)).optional().default(0),
     price_adjustment: z.number().or(z.string().transform(Number)).optional().default(0)
   })).optional()
+});
+
+const categorySchema = z.object({
+  name: z.string().trim().min(1, "Category name is required").max(50),
+  icon: z.string().trim().max(20).optional().default('📦')
+});
+
+const reviewSchema = z.object({
+  authorName: z.string().trim().max(100).optional().default('Verified Buyer'),
+  rating: z.number().int().min(1).max(5).or(z.string().transform(Number)),
+  comment: z.string().trim().min(1, "Comment is required").max(2000)
+});
+
+const orderItemSchema = z.object({
+  product_id: z.union([z.string(), z.number()]),
+  quantity: z.number().int().min(1).max(1000).or(z.string().transform(Number)),
+  variant_id: z.union([z.string(), z.number()]).optional().nullable(),
+  variant_info: z.any().optional()
+});
+
+const orderCreateSchema = z.object({
+  items: z.array(orderItemSchema).min(1, "Items required"),
+  paymentMethod: z.string().trim().max(50).optional().default('card'),
+  email: z.string().trim().email("Invalid email address").max(255).optional().nullable()
+});
+
+const tenantSettingsSchema = z.object({
+  show_flash_deals: z.boolean().optional(),
+  hero_product_id: z.number().int().nullable().optional().or(z.string().regex(/^\d+$/).transform(Number).nullable().optional()),
+  hero_badge: z.string().trim().max(100).nullable().optional(),
+  hero_title: z.string().trim().max(200).nullable().optional(),
+  hero_subtitle: z.string().trim().max(1000).nullable().optional()
+});
+
+const wishlistSchema = z.object({
+  sessionId: z.string().trim().min(1).max(100).optional().nullable(),
+  productId: z.union([z.string(), z.number()])
 });
 
 // Endpoints
@@ -218,17 +294,15 @@ app.get('/api/health', async (req, res, next) => {
   }
 });
 
-// POST /api/upload — Product Image Upload (Bug Fix #5: Cloudinary for persistent cloud storage)
+// POST /api/upload — Product Image Upload
 app.post('/api/upload', resolveTenant, authenticateToken, requireStoreOwnership, upload.single('image'), async (req, res) => {
   try {
     if (!req.file) {
       return sendError(res, 'No image file uploaded');
     }
 
-    // If Cloudinary is configured, upload to cloud (images survive Render redeploys)
     if (useCloudinary) {
       const { v2: cloudinary } = require('cloudinary');
-      // CLOUDINARY_URL env var auto-configures cloud_name, api_key, api_secret
       const result = await new Promise((resolve, reject) => {
         const uploadStream = cloudinary.uploader.upload_stream(
           { folder: `stores/${req.tenant.slug}`, resource_type: 'image' },
@@ -239,7 +313,6 @@ app.post('/api/upload', resolveTenant, authenticateToken, requireStoreOwnership,
       return sendSuccess(res, { url: result.secure_url });
     }
 
-    // Fallback: local disk storage (for development only)
     const host = req.get('host');
     const protocol = req.protocol;
     const imageUrl = `${protocol}://${host}/uploads/${req.file.filename}`;
@@ -258,23 +331,23 @@ app.post('/api/tenants/register', authLimiter, validate(registerSchema), async (
     await client.query('BEGIN');
     
     // Check slug
-    const slugCheck = await client.query('SELECT 1 FROM tenants WHERE slug = $1', [slug]);
+    const slugCheck = await client.query('SELECT 1 FROM tenants WHERE slug = $1', [slug.toLowerCase()]);
     if (slugCheck.rows.length > 0) throw new Error('Slug already exists');
 
     // Check email
-    const emailCheck = await client.query('SELECT 1 FROM users WHERE email = $1', [email]);
+    const emailCheck = await client.query('SELECT 1 FROM users WHERE email = $1', [email.toLowerCase()]);
     if (emailCheck.rows.length > 0) throw new Error('Email already exists');
 
     const tenantRes = await client.query(
       'INSERT INTO tenants (name, slug) VALUES ($1, $2) RETURNING *',
-      [name, slug]
+      [name, slug.toLowerCase()]
     );
     const tenant = tenantRes.rows[0];
 
     const passwordHash = await bcrypt.hash(password, 10);
     const userRes = await client.query(
       "INSERT INTO users (email, password_hash, tenant_id, role) VALUES ($1, $2, $3, 'owner') RETURNING id, email, role, tenant_id",
-      [email, passwordHash, tenant.id]
+      [email.toLowerCase(), passwordHash, tenant.id]
     );
     const user = userRes.rows[0];
 
@@ -313,7 +386,7 @@ app.post('/api/auth/login', authLimiter, validate(loginSchema), async (req, res,
       FROM users u 
       JOIN tenants t ON u.tenant_id = t.id 
       WHERE u.email = $1
-    `, [email]);
+    `, [email.toLowerCase()]);
     
     if (rows.length === 0) return sendError(res, 'Invalid credentials', 401);
     
@@ -323,7 +396,7 @@ app.post('/api/auth/login', authLimiter, validate(loginSchema), async (req, res,
 
     const token = jwt.sign(
       { userId: user.id, tenantId: user.tenant_id, role: user.role },
-      process.env.JWT_SECRET || 'secret',
+      process.env.JWT_SECRET,
       { expiresIn: '24h' }
     );
 
@@ -334,22 +407,21 @@ app.post('/api/auth/login', authLimiter, validate(loginSchema), async (req, res,
 });
 
 // POST /api/customers/register
-app.post('/api/customers/register', resolveTenant, async (req, res, next) => {
+app.post('/api/customers/register', resolveTenant, authLimiter, validate(customerRegisterSchema), async (req, res, next) => {
   try {
     const { email, password, name, phone, address } = req.body;
-    if (!email || !password) return sendError(res, 'Email and password required', 400);
 
     const hash = await bcrypt.hash(password, 10);
     const { rows } = await pool.query(
       'INSERT INTO customers (tenant_id, email, password_hash, name, phone, address) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id, email, name',
-      [req.tenant.id, email.toLowerCase(), hash, name, phone, address]
+      [req.tenant.id, email.toLowerCase(), hash, name || null, phone || null, address || null]
     );
 
     const customer = rows[0];
     const token = jwt.sign(
       { customerId: customer.id, tenantId: req.tenant.id, role: 'customer' },
-      process.env.JWT_SECRET || 'secret',
-      { expiresIn: '30d' }
+      process.env.JWT_SECRET,
+      { expiresIn: '7d' }
     );
 
     sendSuccess(res, { token, customer }, 201);
@@ -360,10 +432,9 @@ app.post('/api/customers/register', resolveTenant, async (req, res, next) => {
 });
 
 // POST /api/customers/login
-app.post('/api/customers/login', resolveTenant, async (req, res, next) => {
+app.post('/api/customers/login', resolveTenant, authLimiter, validate(customerLoginSchema), async (req, res, next) => {
   try {
     const { email, password } = req.body;
-    if (!email || !password) return sendError(res, 'Email and password required', 400);
 
     const { rows } = await pool.query('SELECT * FROM customers WHERE tenant_id = $1 AND email = $2', [req.tenant.id, email.toLowerCase()]);
     if (rows.length === 0) return sendError(res, 'Invalid credentials', 401);
@@ -374,8 +445,8 @@ app.post('/api/customers/login', resolveTenant, async (req, res, next) => {
 
     const token = jwt.sign(
       { customerId: customer.id, tenantId: customer.tenant_id, role: 'customer' },
-      process.env.JWT_SECRET || 'secret',
-      { expiresIn: '30d' }
+      process.env.JWT_SECRET,
+      { expiresIn: '7d' }
     );
 
     delete customer.password_hash;
@@ -391,7 +462,7 @@ const authenticateCustomerToken = (req, res, next) => {
   const token = authHeader && authHeader.split(' ')[1];
   if (!token) return sendError(res, 'Unauthorized', 401);
 
-  jwt.verify(token, process.env.JWT_SECRET || 'secret', (err, user) => {
+  jwt.verify(token, process.env.JWT_SECRET, (err, user) => {
     if (err) return sendError(res, 'Forbidden', 403);
     if (user.role !== 'customer' || user.tenantId !== req.tenant.id) return sendError(res, 'Forbidden', 403);
     req.customer = user;
@@ -405,7 +476,7 @@ const optionalAuthenticateCustomerToken = (req, res, next) => {
   const token = authHeader && authHeader.split(' ')[1];
   if (!token) return next();
 
-  jwt.verify(token, process.env.JWT_SECRET || 'secret', (err, user) => {
+  jwt.verify(token, process.env.JWT_SECRET, (err, user) => {
     if (!err && user.role === 'customer' && user.tenantId === req.tenant.id) {
       req.customer = user;
     }
@@ -438,12 +509,12 @@ app.get('/api/customers/orders', resolveTenant, authenticateCustomerToken, async
   }
 });
 
-// GET /api/products — Enhanced with category, original_price, rating, etc.
+// GET /api/products — Enhanced with category, pagination bounds, and safe store payload
 app.get('/api/products', resolveTenant, async (req, res, next) => {
   try {
     const { category, search } = req.query;
-    const page = parseInt(req.query.page) || 1;
-    const limit = parseInt(req.query.limit) || 50;
+    const page = Math.max(parseInt(req.query.page) || 1, 1);
+    const limit = Math.min(Math.max(parseInt(req.query.limit) || 50, 1), 100);
     const offset = (page - 1) * limit;
 
     let query = `
@@ -473,8 +544,8 @@ app.get('/api/products', resolveTenant, async (req, res, next) => {
       countQuery += ` AND category = $${queryParams.length}`;
     }
 
-    if (search) {
-      queryParams.push(`%${search}%`);
+    if (search && typeof search === 'string') {
+      queryParams.push(`%${search.trim()}%`);
       query += ` AND (title ILIKE $${queryParams.length} OR category ILIKE $${queryParams.length})`;
       countQuery += ` AND (title ILIKE $${queryParams.length} OR category ILIKE $${queryParams.length})`;
     }
@@ -495,7 +566,8 @@ app.get('/api/products', resolveTenant, async (req, res, next) => {
 
     sendSuccess(res, { 
       store: {
-        ...req.tenant,
+        name: req.tenant.name,
+        slug: req.tenant.slug,
         show_flash_deals: req.tenant.show_flash_deals !== false,
         hero_product_id: req.tenant.hero_product_id || null,
         hero_badge: req.tenant.hero_badge || null,
@@ -516,7 +588,7 @@ app.get('/api/products', resolveTenant, async (req, res, next) => {
   }
 });
 
-// POST /api/products — Create product with expanded fields & image gallery & variants
+// POST /api/products — Create product with expanded fields & variants
 app.post('/api/products', resolveTenant, authenticateToken, requireStoreOwnership, validate(productSchema), async (req, res, next) => {
   const { 
     title, price, stock, image_url, 
@@ -537,7 +609,7 @@ app.post('/api/products', resolveTenant, authenticateToken, requireStoreOwnershi
         discount_percent, flash_sale_units, images
        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13) RETURNING *`,
       [
-        title, price, stock, image_url, req.tenant.id, 
+        title, price, stock, image_url || null, req.tenant.id, 
         category, description, original_price, is_featured, is_new_arrival,
         discount_percent, flash_sale_units || stock, imagesJson
       ]
@@ -568,7 +640,7 @@ app.post('/api/products', resolveTenant, authenticateToken, requireStoreOwnershi
   }
 });
 
-// PUT /api/products/:id — Update product with expanded fields & image gallery & variants
+// PUT /api/products/:id — Update product with expanded fields & variants
 app.put('/api/products/:id', resolveTenant, authenticateToken, requireStoreOwnership, validate(productSchema), async (req, res, next) => {
   const { id } = req.params;
   const { 
@@ -662,7 +734,7 @@ app.get('/api/categories', resolveTenant, async (req, res, next) => {
 });
 
 // POST /api/categories
-app.post('/api/categories', resolveTenant, authenticateToken, requireStoreOwnership, async (req, res, next) => {
+app.post('/api/categories', resolveTenant, authenticateToken, requireStoreOwnership, validate(categorySchema), async (req, res, next) => {
   const { name, icon = '📦' } = req.body;
   try {
     const { rows } = await pool.query(
@@ -676,7 +748,7 @@ app.post('/api/categories', resolveTenant, authenticateToken, requireStoreOwners
 });
 
 // PUT /api/categories/:id — Update category name & icon
-app.put('/api/categories/:id', resolveTenant, authenticateToken, requireStoreOwnership, async (req, res, next) => {
+app.put('/api/categories/:id', resolveTenant, authenticateToken, requireStoreOwnership, validate(categorySchema), async (req, res, next) => {
   const { id } = req.params;
   const { name, icon } = req.body;
   try {
@@ -710,11 +782,11 @@ app.delete('/api/categories/:id', resolveTenant, authenticateToken, requireStore
 // Wishlist Endpoints
 app.get('/api/wishlist', resolveTenant, async (req, res, next) => {
   const { sessionId } = req.query;
-  if (!sessionId) return sendSuccess(res, []);
+  if (!sessionId || typeof sessionId !== 'string') return sendSuccess(res, []);
   try {
     const { rows } = await pool.query(
       'SELECT product_id FROM wishlists WHERE tenant_id = $1 AND session_id = $2',
-      [req.tenant.id, sessionId]
+      [req.tenant.id, sessionId.trim()]
     );
     sendSuccess(res, rows.map(r => r.product_id));
   } catch (err) {
@@ -722,9 +794,9 @@ app.get('/api/wishlist', resolveTenant, async (req, res, next) => {
   }
 });
 
-app.post('/api/wishlist', resolveTenant, async (req, res, next) => {
+app.post('/api/wishlist', resolveTenant, validate(wishlistSchema), async (req, res, next) => {
   const { sessionId, productId } = req.body;
-  if (!sessionId || !productId) return sendError(res, 'Session ID and Product ID required');
+  if (!sessionId) return sendError(res, 'Session ID required');
   try {
     await pool.query(
       'INSERT INTO wishlists (tenant_id, session_id, product_id) VALUES ($1, $2, $3) ON CONFLICT DO NOTHING',
@@ -739,10 +811,11 @@ app.post('/api/wishlist', resolveTenant, async (req, res, next) => {
 app.delete('/api/wishlist/:productId', resolveTenant, async (req, res, next) => {
   const { productId } = req.params;
   const { sessionId } = req.query;
+  if (!sessionId || typeof sessionId !== 'string') return sendError(res, 'Session ID required');
   try {
     await pool.query(
       'DELETE FROM wishlists WHERE tenant_id = $1 AND session_id = $2 AND product_id = $3',
-      [req.tenant.id, sessionId, productId]
+      [req.tenant.id, sessionId.trim(), productId]
     );
     sendSuccess(res, { removed: true });
   } catch (err) {
@@ -755,7 +828,7 @@ app.get('/api/products/:id/reviews', resolveTenant, async (req, res, next) => {
   const { id } = req.params;
   try {
     const { rows } = await pool.query(
-      'SELECT id, author_name, rating, comment, created_at FROM reviews WHERE tenant_id = $1 AND product_id = $2 ORDER BY created_at DESC',
+      'SELECT id, author_name, rating, comment, created_at FROM reviews WHERE tenant_id = $1 AND product_id = $2 ORDER BY created_at DESC LIMIT 50',
       [req.tenant.id, id]
     );
     sendSuccess(res, rows);
@@ -764,23 +837,19 @@ app.get('/api/products/:id/reviews', resolveTenant, async (req, res, next) => {
   }
 });
 
-// POST /api/products/:id/reviews — Submit a customer review after purchase/view
-app.post('/api/products/:id/reviews', resolveTenant, async (req, res, next) => {
+// POST /api/products/:id/reviews — Submit a customer review with validation and rate limiting
+app.post('/api/products/:id/reviews', resolveTenant, reviewLimiter, validate(reviewSchema), async (req, res, next) => {
   const { id } = req.params;
   const { authorName = 'Verified Buyer', rating = 5, comment } = req.body;
 
-  if (!comment || !comment.trim()) {
-    return sendError(res, 'Comment is required');
-  }
-
   try {
-    const productCheck = await pool.query('SELECT id FROM products WHERE id = $1 AND tenant_id = $2', [req.params.id, req.tenant.id]);
+    const productCheck = await pool.query('SELECT id FROM products WHERE id = $1 AND tenant_id = $2', [id, req.tenant.id]);
     if (productCheck.rows.length === 0) return res.status(404).json({ success: false, message: 'Product not found' });
 
     // Insert review
     const { rows: newReview } = await pool.query(
       'INSERT INTO reviews (tenant_id, product_id, author_name, rating, comment) VALUES ($1, $2, $3, $4, $5) RETURNING *',
-      [req.tenant.id, id, authorName, Math.min(5, Math.max(1, Number(rating))), comment]
+      [req.tenant.id, id, authorName, rating, comment]
     );
 
     // Calculate new average rating & review count for product
@@ -802,10 +871,9 @@ app.post('/api/products/:id/reviews', resolveTenant, async (req, res, next) => {
   }
 });
 
-// POST /api/orders — Create order (atomic transaction)
-app.post('/api/orders', resolveTenant, optionalAuthenticateCustomerToken, async (req, res, next) => {
+// POST /api/orders — Create order (atomic transaction with server price verification)
+app.post('/api/orders', resolveTenant, checkoutLimiter, optionalAuthenticateCustomerToken, validate(orderCreateSchema), async (req, res, next) => {
   const { items, paymentMethod = 'card', email } = req.body;
-  if (!items || items.length === 0) return sendError(res, 'Items required');
 
   const customerEmail = req.customer ? req.customer.email : email;
 
@@ -898,32 +966,63 @@ app.post('/api/orders', resolveTenant, optionalAuthenticateCustomerToken, async 
   }
 });
 
-// POST /api/checkout/create-session — Stripe / Payment Scaffolding (Supports NGN Naira)
-app.post('/api/checkout/create-session', resolveTenant, async (req, res, next) => {
+// POST /api/checkout/create-session — Secure Stripe Checkout with server-side price verification
+app.post('/api/checkout/create-session', resolveTenant, checkoutLimiter, async (req, res, next) => {
   const { items } = req.body;
-  if (!items || items.length === 0) return sendError(res, 'Items required');
+  if (!items || !Array.isArray(items) || items.length === 0) return sendError(res, 'Items required');
 
   try {
     let stripeSecret = process.env.STRIPE_SECRET_KEY;
     
+    // Re-verify and compute line items directly from the database (prevents price manipulation)
+    const verifiedLineItems = [];
+    for (const item of items) {
+      const prodId = item.product_id || item.id;
+      if (!prodId) continue;
+
+      const prodRes = await pool.query(
+        'SELECT id, title, price, image_url FROM products WHERE id = $1 AND tenant_id = $2',
+        [prodId, req.tenant.id]
+      );
+      if (prodRes.rows.length === 0) continue;
+
+      const product = prodRes.rows[0];
+      let unitPrice = Number(product.price);
+
+      if (item.variant_id) {
+        const vRes = await pool.query(
+          'SELECT price_adjustment FROM product_variants WHERE id = $1 AND product_id = $2',
+          [item.variant_id, product.id]
+        );
+        if (vRes.rows.length > 0) {
+          unitPrice += Number(vRes.rows[0].price_adjustment);
+        }
+      }
+
+      const qty = Math.max(1, Math.min(parseInt(item.quantity) || 1, 100));
+      verifiedLineItems.push({
+        price_data: {
+          currency: 'ngn',
+          product_data: {
+            name: product.title,
+            images: product.image_url ? [product.image_url] : [],
+          },
+          unit_amount: Math.round(unitPrice * 100), // In kobo
+        },
+        quantity: qty,
+      });
+    }
+
+    if (verifiedLineItems.length === 0) {
+      return sendError(res, 'No valid items found for checkout');
+    }
+
     // If Stripe secret key exists, create actual Stripe Session
     if (stripeSecret) {
       const stripe = require('stripe')(stripeSecret);
-      const lineItems = items.map(item => ({
-        price_data: {
-          currency: 'ngn', // Naira
-          product_data: {
-            name: item.title,
-            images: item.image_url ? [item.image_url] : [],
-          },
-          unit_amount: Math.round(Number(item.price) * 100), // In kobo / cents
-        },
-        quantity: item.quantity,
-      }));
-
       const session = await stripe.checkout.sessions.create({
         payment_method_types: ['card'],
-        line_items: lineItems,
+        line_items: verifiedLineItems,
         mode: 'payment',
         success_url: `${req.get('origin') || 'http://localhost:3000'}/${req.tenant.slug}?checkout=success`,
         cancel_url: `${req.get('origin') || 'http://localhost:3000'}/${req.tenant.slug}?checkout=cancel`,
@@ -945,11 +1044,11 @@ app.post('/api/checkout/create-session', resolveTenant, async (req, res, next) =
   }
 });
 
-// GET /api/orders
+// GET /api/orders — Admin order listing with pagination bounds
 app.get('/api/orders', resolveTenant, authenticateToken, requireStoreOwnership, async (req, res, next) => {
   try {
-    const page = parseInt(req.query.page) || 1;
-    const limit = parseInt(req.query.limit) || 50;
+    const page = Math.max(parseInt(req.query.page) || 1, 1);
+    const limit = Math.min(Math.max(parseInt(req.query.limit) || 50, 1), 100);
     const offset = (page - 1) * limit;
 
     const countRes = await pool.query('SELECT COUNT(*) FROM orders WHERE tenant_id = $1', [req.tenant.id]);
@@ -986,7 +1085,7 @@ app.get('/api/orders', resolveTenant, authenticateToken, requireStoreOwnership, 
   }
 });
 
-// PATCH /api/orders/:id
+// PATCH /api/orders/:id — Update order status
 app.patch('/api/orders/:id', resolveTenant, authenticateToken, requireStoreOwnership, async (req, res, next) => {
   const { id } = req.params;
   const { status } = req.body;
@@ -1020,8 +1119,8 @@ app.patch('/api/orders/:id', resolveTenant, authenticateToken, requireStoreOwner
   }
 });
 
-// POST /api/orders/:id/pay
-app.post('/api/orders/:id/pay', resolveTenant, async (req, res, next) => {
+// POST /api/orders/:id/pay — Secure order settlement (Admin / Authorized store owner only)
+app.post('/api/orders/:id/pay', resolveTenant, authenticateToken, requireStoreOwnership, async (req, res, next) => {
   const { id } = req.params;
   try {
     const { rows: orders } = await pool.query(
@@ -1104,43 +1203,28 @@ app.get('/api/admin/stats', resolveTenant, authenticateToken, requireStoreOwners
   }
 });
 
-// PUT /api/tenant/settings — Update store settings (Flash Deals toggle, Hero Showcase Product)
-app.put('/api/tenant/settings', resolveTenant, authenticateToken, requireStoreOwnership, async (req, res, next) => {
+// PUT /api/tenant/settings — Update store settings without runtime DDL
+app.put('/api/tenant/settings', resolveTenant, authenticateToken, requireStoreOwnership, validate(tenantSettingsSchema), async (req, res, next) => {
   try {
     const { show_flash_deals, hero_product_id, hero_badge, hero_title, hero_subtitle } = req.body;
-    
-    // Auto-create any missing columns in tenants table
-    try {
-      await pool.query('ALTER TABLE tenants ADD COLUMN IF NOT EXISTS show_flash_deals BOOLEAN DEFAULT TRUE');
-      await pool.query('ALTER TABLE tenants ADD COLUMN IF NOT EXISTS hero_product_id INTEGER');
-      await pool.query('ALTER TABLE tenants ADD COLUMN IF NOT EXISTS hero_badge VARCHAR(255)');
-      await pool.query('ALTER TABLE tenants ADD COLUMN IF NOT EXISTS hero_title VARCHAR(255)');
-      await pool.query('ALTER TABLE tenants ADD COLUMN IF NOT EXISTS hero_subtitle TEXT');
-    } catch (colErr) {
-      // Ignore migration errors if already exists
-    }
 
-    try {
-      await pool.query(
-        `UPDATE tenants 
-         SET show_flash_deals = COALESCE($1, show_flash_deals),
-             hero_product_id = $2,
-             hero_badge = COALESCE($3, hero_badge),
-             hero_title = COALESCE($4, hero_title),
-             hero_subtitle = COALESCE($5, hero_subtitle)
-         WHERE id = $6`,
-        [
-          show_flash_deals !== undefined ? show_flash_deals === true : null,
-          hero_product_id !== undefined ? (hero_product_id ? parseInt(hero_product_id) : null) : req.tenant.hero_product_id,
-          hero_badge !== undefined ? hero_badge : null,
-          hero_title !== undefined ? hero_title : null,
-          hero_subtitle !== undefined ? hero_subtitle : null,
-          req.tenant.id
-        ]
-      );
-    } catch (updateErr) {
-      console.warn('Could not persist all settings to tenants table:', updateErr.message);
-    }
+    await pool.query(
+      `UPDATE tenants 
+       SET show_flash_deals = COALESCE($1, show_flash_deals),
+           hero_product_id = $2,
+           hero_badge = COALESCE($3, hero_badge),
+           hero_title = COALESCE($4, hero_title),
+           hero_subtitle = COALESCE($5, hero_subtitle)
+       WHERE id = $6`,
+      [
+        show_flash_deals !== undefined ? show_flash_deals === true : null,
+        hero_product_id !== undefined ? (hero_product_id ? parseInt(hero_product_id) : null) : req.tenant.hero_product_id,
+        hero_badge !== undefined ? hero_badge : null,
+        hero_title !== undefined ? hero_title : null,
+        hero_subtitle !== undefined ? hero_subtitle : null,
+        req.tenant.id
+      ]
+    );
 
     sendSuccess(res, { 
       show_flash_deals: show_flash_deals !== undefined ? show_flash_deals === true : req.tenant.show_flash_deals,
@@ -1157,7 +1241,11 @@ app.put('/api/tenant/settings', resolveTenant, authenticateToken, requireStoreOw
 // Global Error Handler
 app.use((err, req, res, next) => {
   console.error(err.stack);
-  res.status(500).json({ success: false, error: err.message || 'Internal server error' });
+  const isProd = process.env.NODE_ENV === 'production';
+  res.status(err.status || 500).json({ 
+    success: false, 
+    error: isProd ? 'Internal server error' : (err.message || 'Internal server error') 
+  });
 });
 
 app.listen(PORT, () => {
