@@ -1244,8 +1244,76 @@ export default function AdminDashboard() {
                     }))}
                     className="text-[11px] font-bold text-[var(--accent-dark)] hover:underline"
                   >
-                    + Add Variant
+                    + Custom Variant
                   </button>
+                </div>
+
+                {/* Quick Presets for Apparel, Shoes, and Colors */}
+                <div className="flex flex-wrap items-center gap-1.5 pt-1">
+                  <span className="text-[10px] font-bold text-[var(--muted)] uppercase tracking-wider">Presets:</span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setProductForm(prev => ({
+                        ...prev,
+                        variants: [
+                          { name: 'Size', value: 'S', stock: 10, price_adjustment: 0 },
+                          { name: 'Size', value: 'M', stock: 15, price_adjustment: 0 },
+                          { name: 'Size', value: 'L', stock: 15, price_adjustment: 0 },
+                          { name: 'Size', value: 'XL', stock: 8, price_adjustment: 0 },
+                        ]
+                      }));
+                      addToast('Added Standard Apparel Sizes (S, M, L, XL)');
+                    }}
+                    className="text-[10px] font-semibold px-2.5 py-1 rounded-xl bg-[var(--surface)] border border-[var(--border)] text-[var(--foreground)] hover:border-[var(--accent)] transition-colors shadow-xs"
+                  >
+                    + Apparel (S, M, L, XL)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setProductForm(prev => ({
+                        ...prev,
+                        variants: [
+                          { name: 'Size', value: '40', stock: 5, price_adjustment: 0 },
+                          { name: 'Size', value: '41', stock: 8, price_adjustment: 0 },
+                          { name: 'Size', value: '42', stock: 10, price_adjustment: 0 },
+                          { name: 'Size', value: '43', stock: 8, price_adjustment: 0 },
+                          { name: 'Size', value: '44', stock: 5, price_adjustment: 0 },
+                        ]
+                      }));
+                      addToast('Added Shoe Sizes (40-44)');
+                    }}
+                    className="text-[10px] font-semibold px-2.5 py-1 rounded-xl bg-[var(--surface)] border border-[var(--border)] text-[var(--foreground)] hover:border-[var(--accent)] transition-colors shadow-xs"
+                  >
+                    + Shoes (40-44)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setProductForm(prev => ({
+                        ...prev,
+                        variants: [
+                          { name: 'Color', value: 'Black', stock: 10, price_adjustment: 0 },
+                          { name: 'Color', value: 'White', stock: 10, price_adjustment: 0 },
+                          { name: 'Color', value: 'Sand Beige', stock: 8, price_adjustment: 0 },
+                        ]
+                      }));
+                      addToast('Added Core Color Variants');
+                    }}
+                    className="text-[10px] font-semibold px-2.5 py-1 rounded-xl bg-[var(--surface)] border border-[var(--border)] text-[var(--foreground)] hover:border-[var(--accent)] transition-colors shadow-xs"
+                  >
+                    + Colors
+                  </button>
+                  {productForm.variants?.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => setProductForm(prev => ({ ...prev, variants: [] }))}
+                      className="text-[10px] font-semibold px-2 py-0.5 text-red-500 hover:underline ml-auto"
+                    >
+                      Clear All
+                    </button>
+                  )}
                 </div>
                 {(productForm.variants || []).map((v, idx) => (
                   <div key={idx} className="grid grid-cols-[1fr_1fr_60px_1fr] gap-2 items-end">

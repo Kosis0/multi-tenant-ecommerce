@@ -31,6 +31,8 @@ export default function StorefrontPage({ params }) {
   // Filters & State
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [searchQuery, setSearchQuery] = useState('');
+  const [isSearchFocused, setIsSearchFocused] = useState(false);
+  const searchContainerRef = useRef(null);
   const [wishlist, setWishlist] = useState([]);
   const [sessionId, setSessionId] = useState('');
   const [cart, setCart] = useState(() => {
@@ -60,6 +62,17 @@ export default function StorefrontPage({ params }) {
   const [isAccountModalOpen, setIsAccountModalOpen] = useState(false);
   const productsGridRef = useRef(null);
 
+  // Close search popover on click outside
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (searchContainerRef.current && !searchContainerRef.current.contains(e.target)) {
+        setIsSearchFocused(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
   // Scroll to products grid (used when searching)
   const scrollToProducts = () => {
     setTimeout(() => {
@@ -69,9 +82,85 @@ export default function StorefrontPage({ params }) {
 
   const handleSearchKeyDown = (e) => {
     if (e.key === 'Enter' && searchQuery.trim()) {
+      setIsSearchFocused(false);
       scrollToProducts();
       setIsMobileMenuOpen(false);
     }
+  };
+
+  // Native Web Share / Copy Link Helper
+  const handleShareProduct = (product) => {
+    if (typeof navigator !== 'undefined' && navigator.share) {
+      navigator.share({
+        title: product.title,
+        text: `Explore ${product.title} on ${getStoreDisplayName()}`,
+        url: window.location.href,
+      }).catch(() => {});
+    } else if (typeof navigator !== 'undefined' && navigator.clipboard) {
+      navigator.clipboard.writeText(window.location.href);
+      addToast('Product link copied to clipboard!', 'success');
+    } else {
+      addToast('Link copied to clipboard', 'info');
+    }
+  };
+
+  // Visual Order Status Stepper Helper
+  const renderOrderStepper = (status) => {
+    const steps = [
+      { key: 'pending', label: 'Placed' },
+      { key: 'paid', label: 'Confirmed' },
+      { key: 'shipped', label: 'Dispatched' },
+      { key: 'delivered', label: 'Delivered' },
+    ];
+
+    if (status === 'cancelled') {
+      return (
+        <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-red-500/10 border border-red-500/20 text-red-500 text-[10px] font-bold uppercase tracking-wider">
+          <span>✕</span>
+          <span>Order Cancelled</span>
+        </div>
+      );
+    }
+
+    const stepOrder = ['pending', 'paid', 'shipped', 'delivered'];
+    const currentIndex = stepOrder.indexOf(status?.toLowerCase()) !== -1 ? stepOrder.indexOf(status?.toLowerCase()) : 0;
+
+    return (
+      <div className="w-full pt-3 pb-1">
+        <div className="flex items-center justify-between relative px-2">
+          {/* Background Line */}
+          <div className="absolute top-1/2 left-4 right-4 h-0.5 bg-[var(--border)] -translate-y-1/2 z-0" />
+          {/* Active Fill Line */}
+          <div 
+            className="absolute top-1/2 left-4 h-0.5 bg-emerald-500 -translate-y-1/2 z-0 transition-all duration-500" 
+            style={{ width: `calc(${(currentIndex / (steps.length - 1)) * 100}% - 8px)` }}
+          />
+
+          {steps.map((step, idx) => {
+            const isCompleted = idx <= currentIndex;
+            const isCurrent = idx === currentIndex;
+            return (
+              <div key={step.key} className="flex flex-col items-center relative z-10">
+                <div 
+                  className={`w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-bold border transition-all ${
+                    isCurrent 
+                      ? 'bg-emerald-500 text-white border-emerald-500 ring-2 ring-emerald-500/20 scale-110 shadow-xs' 
+                      : isCompleted 
+                      ? 'bg-emerald-500 text-white border-emerald-500' 
+                      : 'bg-[var(--card)] text-[var(--muted)] border-[var(--border)]'
+                  }`}
+                >
+                  {isCompleted ? '✓' : idx + 1}
+                </div>
+                <span className={`text-[8px] font-bold uppercase tracking-wider mt-1 ${isCurrent ? 'text-emerald-600 dark:text-emerald-400 font-extrabold' : isCompleted ? 'text-[var(--foreground)]' : 'text-[var(--muted)]'}`}>
+                  {step.label}
+                </span>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    );
   };
 
   // Review Modal State
@@ -820,23 +909,98 @@ export default function StorefrontPage({ params }) {
           {/* Search & Actions: Theme Toggle, Wishlist, Cart, Account */}
           <div className="flex items-center gap-2 sm:gap-3">
             
-            {/* Search Bar */}
-            <div className="hidden sm:flex items-center relative">
+            {/* Search Bar with Autocomplete & Suggestions Dropdown */}
+            <div ref={searchContainerRef} className="hidden sm:flex items-center relative">
               <input 
                 type="text" 
                 placeholder="Search products..."
                 value={searchQuery}
-                onChange={e => setSearchQuery(e.target.value)}
-                onKeyDown={handleSearchKeyDown}
-                className="w-44 lg:w-56 bg-[var(--background)] border border-[var(--border)] rounded-full pl-3.5 pr-8 py-1.5 text-xs text-[var(--foreground)] placeholder-[var(--muted)] outline-none focus:border-[var(--accent)] transition-all"
+                onFocus={() => setIsSearchFocused(true)}
+                onChange={e => { setSearchQuery(e.target.value); setIsSearchFocused(true); }}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    setIsSearchFocused(false);
+                    handleSearchKeyDown(e);
+                  } else if (e.key === 'Escape') {
+                    setIsSearchFocused(false);
+                  }
+                }}
+                className="w-48 lg:w-64 bg-[var(--background)] border border-[var(--border)] rounded-full pl-3.5 pr-8 py-1.5 text-xs text-[var(--foreground)] placeholder-[var(--muted)] outline-none focus:border-[var(--accent)] transition-all"
               />
               <button 
-                onClick={scrollToProducts} 
+                onClick={() => { setIsSearchFocused(false); scrollToProducts(); }} 
                 className="absolute right-2.5 text-[var(--muted)] hover:text-[var(--foreground)] transition-colors"
                 aria-label="Search products"
               >
                 <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
               </button>
+
+              {/* Suggestions & Autocomplete Dropdown */}
+              <AnimatePresence>
+                {isSearchFocused && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 8, scale: 0.98 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, y: 4, scale: 0.98 }}
+                    transition={{ duration: 0.15 }}
+                    className="absolute top-full left-0 mt-2 w-72 sm:w-80 bg-[var(--surface)] border border-[var(--border)] rounded-2xl shadow-xl p-3.5 z-50 space-y-3"
+                  >
+                    {/* Quick Category Suggestions */}
+                    <div>
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--muted)] block mb-1.5">
+                        Browse Collections
+                      </span>
+                      <div className="flex flex-wrap gap-1.5">
+                        {['All', 'Shoes', 'Apparel', 'Accessories', 'Bags'].map(cat => (
+                          <button
+                            key={cat}
+                            type="button"
+                            onClick={() => {
+                              setSelectedCategory(cat);
+                              setIsSearchFocused(false);
+                              scrollToProducts();
+                            }}
+                            className={`px-2.5 py-1 text-[11px] font-semibold rounded-lg border transition-all ${
+                              selectedCategory.toLowerCase() === cat.toLowerCase()
+                                ? 'bg-[var(--accent)] border-[var(--accent)] text-white shadow-xs'
+                                : 'bg-[var(--background)] border-[var(--border)] text-[var(--muted)] hover:text-[var(--foreground)] hover:border-[var(--accent)]'
+                            }`}
+                          >
+                            {cat}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Instant Matching Products */}
+                    <div className="border-t border-[var(--border)] pt-2.5">
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--muted)] block mb-1.5">
+                        {searchQuery.trim() ? `Matching Items (${filteredProducts.slice(0, 3).length})` : 'Featured Products'}
+                      </span>
+                      <div className="space-y-1.5">
+                        {(searchQuery.trim() ? filteredProducts : products).slice(0, 3).map(p => (
+                          <div
+                            key={p.id}
+                            onClick={() => {
+                              openProductDetail(p);
+                              setIsSearchFocused(false);
+                            }}
+                            className="flex items-center gap-2.5 p-1.5 rounded-xl hover:bg-[var(--card-clay)] cursor-pointer transition-colors"
+                          >
+                            <div className="w-9 h-9 rounded-lg bg-[var(--card-clay)] overflow-hidden relative flex-shrink-0 border border-[var(--border)]">
+                              {p.image_url && <Image src={p.image_url} alt={p.title} fill sizes="36px" className="object-cover" />}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-xs font-semibold text-[var(--foreground)] truncate">{p.title}</p>
+                              <span className="text-[11px] font-mono font-bold text-[var(--accent-dark)]">{formatNaira(p.price)}</span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </div>
 
             {/* Dark/Light Mode Switcher */}
@@ -1700,21 +1864,25 @@ export default function StorefrontPage({ params }) {
                     <div className="space-y-4">
                       {customerOrders.map(order => (
                         <div key={order.id} className="bg-[var(--card)] border border-[var(--border)] rounded-2xl overflow-hidden shadow-xs">
-                          <div className="p-4 border-b border-[var(--border)] bg-[var(--card-clay)] flex justify-between items-start">
-                            <div>
-                              <p className="text-[10px] text-[var(--muted)] font-mono mb-0.5">#{order.id.slice(0,8).toUpperCase()}</p>
-                              <p className="text-xs font-medium text-[var(--foreground)]">{new Date(order.created_at).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })}</p>
+                          <div className="p-4 border-b border-[var(--border)] bg-[var(--card-clay)] space-y-3">
+                            <div className="flex justify-between items-start">
+                              <div>
+                                <p className="text-[10px] text-[var(--muted)] font-mono mb-0.5">#{order.id.slice(0,8).toUpperCase()}</p>
+                                <p className="text-xs font-medium text-[var(--foreground)]">{new Date(order.created_at).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })}</p>
+                              </div>
+                              <div className="text-right">
+                                <span className={`inline-block px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${
+                                  order.status === 'delivered' ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400' : 
+                                  order.status === 'cancelled' ? 'bg-red-500/10 text-red-600 dark:text-red-400' :
+                                  'bg-amber-500/10 text-amber-600 dark:text-amber-400'
+                                }`}>
+                                  {order.status}
+                                </span>
+                                <p className="text-xs font-bold font-mono text-[var(--foreground)] mt-1">{formatNaira(order.total_amount)}</p>
+                              </div>
                             </div>
-                            <div className="text-right">
-                              <span className={`inline-block px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${
-                                order.status === 'delivered' ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400' : 
-                                order.status === 'cancelled' ? 'bg-red-500/10 text-red-600 dark:text-red-400' :
-                                'bg-amber-500/10 text-amber-600 dark:text-amber-400'
-                              }`}>
-                                {order.status}
-                              </span>
-                              <p className="text-xs font-bold font-mono text-[var(--foreground)] mt-1">{formatNaira(order.total_amount)}</p>
-                            </div>
+                            {/* Visual Progress Stepper */}
+                            {renderOrderStepper(order.status)}
                           </div>
                           <div className="p-4 space-y-3">
                             {order.items.map((item, idx) => (
@@ -1757,12 +1925,38 @@ export default function StorefrontPage({ params }) {
 
               <div className="flex-1 overflow-y-auto p-6 space-y-4">
                 {cart.length === 0 ? (
-                  <div className="text-center py-16 text-[var(--muted)]">
-                    <div className="w-14 h-14 rounded-full bg-[var(--card-clay)] text-[var(--muted)] flex items-center justify-center mx-auto mb-3">
-                      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg>
+                  <div className="space-y-6">
+                    <div className="text-center py-8 text-[var(--muted)]">
+                      <div className="w-14 h-14 rounded-full bg-[var(--card-clay)] text-[var(--muted)] flex items-center justify-center mx-auto mb-3">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg>
+                      </div>
+                      <p className="font-semibold text-[var(--foreground)] text-sm">Your bag is empty</p>
+                      <p className="text-xs text-[var(--muted)] mt-1">Explore our latest styles and curated essentials.</p>
                     </div>
-                    <p className="font-semibold text-[var(--foreground)] text-sm">Your bag is empty</p>
-                    <p className="text-xs text-[var(--muted)] mt-1">Explore our latest styles and add items to your cart.</p>
+
+                    {/* Trending Recommendations for Empty Cart */}
+                    <div className="space-y-3 pt-4 border-t border-[var(--border)]">
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--accent-dark)] block">Trending Picks For You</span>
+                      <div className="space-y-2.5">
+                        {products.slice(0, 3).map(p => (
+                          <div key={p.id} className="flex items-center justify-between gap-3 p-3 rounded-2xl bg-[var(--card)] border border-[var(--border)] shadow-xs">
+                            <div className="w-12 h-12 rounded-xl bg-[var(--card-clay)] overflow-hidden relative flex-shrink-0 border border-[var(--border)]">
+                              {p.image_url && <Image src={p.image_url} alt={p.title} fill sizes="48px" className="object-cover" />}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <h4 className="text-xs font-semibold text-[var(--foreground)] truncate">{p.title}</h4>
+                              <span className="text-xs font-mono font-bold text-[var(--accent-dark)]">{formatNaira(p.price)}</span>
+                            </div>
+                            <button 
+                              onClick={() => addToCart(p)}
+                              className="btn-clay text-[10px] py-1.5 px-3 uppercase tracking-wider"
+                            >
+                              + Add
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
                   </div>
                 ) : (
                   cart.map((item, idx) => (
@@ -1836,12 +2030,38 @@ export default function StorefrontPage({ params }) {
 
             <div className="flex-1 overflow-y-auto p-6 space-y-4">
               {wishlist.length === 0 ? (
-                <div className="text-center py-16 text-[var(--muted)]">
-                  <div className="w-14 h-14 rounded-full bg-[var(--card-clay)] text-[var(--muted)] flex items-center justify-center mx-auto mb-3">
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
+                <div className="space-y-6">
+                  <div className="text-center py-8 text-[var(--muted)]">
+                    <div className="w-14 h-14 rounded-full bg-[var(--card-clay)] text-[var(--muted)] flex items-center justify-center mx-auto mb-3">
+                      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
+                    </div>
+                    <p className="font-semibold text-[var(--foreground)] text-sm">No items in your wishlist</p>
+                    <p className="text-xs text-[var(--muted)] mt-1">Tap the heart icon on any product to save it here for later.</p>
                   </div>
-                  <p className="font-semibold text-[var(--foreground)] text-sm">No items in your wishlist</p>
-                  <p className="text-xs text-[var(--muted)] mt-1">Tap the heart icon on any product to save it here for later.</p>
+
+                  {/* Recommendations for Empty Wishlist */}
+                  <div className="space-y-3 pt-4 border-t border-[var(--border)]">
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--accent-dark)] block">Curated For Your Taste</span>
+                    <div className="space-y-2.5">
+                      {products.slice(0, 3).map(p => (
+                        <div key={p.id} className="flex items-center justify-between gap-3 p-3 rounded-2xl bg-[var(--card)] border border-[var(--border)] shadow-xs">
+                          <div className="w-12 h-12 rounded-xl bg-[var(--card-clay)] overflow-hidden relative flex-shrink-0 border border-[var(--border)]">
+                            {p.image_url && <Image src={p.image_url} alt={p.title} fill sizes="48px" className="object-cover" />}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <h4 className="text-xs font-semibold text-[var(--foreground)] truncate">{p.title}</h4>
+                            <span className="text-xs font-mono font-bold text-[var(--accent-dark)]">{formatNaira(p.price)}</span>
+                          </div>
+                          <button 
+                            onClick={() => toggleWishlist(p.id)}
+                            className="btn-clay-outline text-[10px] py-1.5 px-3 uppercase tracking-wider"
+                          >
+                            ♥ Save
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
                 </div>
               ) : (
                 products.filter(p => wishlist.includes(p.id)).map(product => (
@@ -1948,9 +2168,9 @@ export default function StorefrontPage({ params }) {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6 sm:gap-8">
                 {/* Image Gallery Column */}
                 <div className="space-y-3">
-                  <div className="aspect-square bg-[var(--card-clay)] border border-[var(--border)] rounded-2xl overflow-hidden flex items-center justify-center p-4 relative shadow-soft">
+                  <div className="aspect-square bg-[var(--card-clay)] border border-[var(--border)] rounded-2xl overflow-hidden flex items-center justify-center p-4 relative shadow-soft group">
                     {mainImg ? (
-                      <Image src={mainImg} alt={selectedDetailProduct.title} fill sizes="(max-width: 768px) 100vw, 50vw" className="object-cover rounded-xl" />
+                      <Image src={mainImg} alt={selectedDetailProduct.title} fill sizes="(max-width: 768px) 100vw, 50vw" className="object-cover rounded-xl group-hover:scale-110 transition-transform duration-500 cursor-zoom-in" />
                     ) : (
                       <div className="text-[var(--muted)] text-xs font-mono">No Image Preview</div>
                     )}
@@ -1992,7 +2212,9 @@ export default function StorefrontPage({ params }) {
 
                     {/* Price & Strikethrough */}
                     <div className="flex items-baseline gap-3">
-                      <span className="text-2xl font-black font-mono text-[var(--accent-dark)]">{formatNaira(selectedDetailProduct.price)}</span>
+                      <span className="text-2xl font-black font-mono text-[var(--accent-dark)]">
+                        {formatNaira(selectedVariant ? Number(selectedDetailProduct.price) + Number(selectedVariant.price_adjustment) : selectedDetailProduct.price)}
+                      </span>
                       <span className="text-xs text-[var(--muted)] line-through">{formatNaira(originalPrice)}</span>
                       <span className="bg-[var(--accent)] text-white text-[10px] font-bold px-2 py-0.5 rounded-full shadow-xs">
                         -{discountPercent}% OFF
@@ -2061,13 +2283,41 @@ export default function StorefrontPage({ params }) {
                       className={`p-3 rounded-2xl border transition-all ${
                         isWishlisted ? 'bg-[var(--accent)] border-[var(--accent)] text-white shadow-xs' : 'bg-[var(--card)] border-[var(--border)] text-[var(--muted)] hover:text-[var(--foreground)]'
                       }`}
+                      aria-label="Wishlist"
                     >
                       <svg width="20" height="20" viewBox="0 0 24 24" fill={isWishlisted ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="2">
                         <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
                       </svg>
                     </button>
+
+                    <button
+                      type="button"
+                      onClick={() => handleShareProduct(selectedDetailProduct)}
+                      className="p-3 rounded-2xl border border-[var(--border)] bg-[var(--card)] text-[var(--muted)] hover:text-[var(--foreground)] transition-all shadow-xs"
+                      title="Share product"
+                      aria-label="Share product link"
+                    >
+                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
+                    </button>
                   </div>
                 </div>
+              </div>
+
+              {/* Sticky Mobile Add to Bag Bar */}
+              <div className="md:hidden sticky bottom-0 -mx-6 -mb-6 sm:-mx-8 sm:-mb-8 mt-6 p-4 bg-[var(--surface)]/95 backdrop-blur-md border-t border-[var(--border)] flex items-center justify-between gap-3 shadow-lg z-20">
+                <div>
+                  <span className="text-[10px] text-[var(--muted)] font-mono block">Price</span>
+                  <span className="text-base font-bold font-mono text-[var(--accent-dark)]">
+                    {formatNaira(selectedVariant ? Number(selectedDetailProduct.price) + Number(selectedVariant.price_adjustment) : selectedDetailProduct.price)}
+                  </span>
+                </div>
+                <button
+                  onClick={() => { addToCart(selectedDetailProduct, selectedVariant); }}
+                  disabled={(selectedVariant ? selectedVariant.stock : selectedDetailProduct.stock) === 0}
+                  className="btn-clay flex-1 py-3 text-xs uppercase tracking-wider font-bold shadow-md disabled:opacity-50"
+                >
+                  {(selectedVariant ? selectedVariant.stock : selectedDetailProduct.stock) > 0 ? 'Add to Bag' : 'Out of Stock'}
+                </button>
               </div>
             </motion.div>
           </motion.div>
