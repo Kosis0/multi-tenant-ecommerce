@@ -1,7 +1,7 @@
 @import "tailwindcss";
 
 :root {
-  /* Clay Shop Light Mode Palette */
+  /* Refined Light Mode Palette */
   --background: #f7f6f4;
   --foreground: #1c1917;
   --surface: #ffffff;
@@ -30,7 +30,7 @@
 }
 
 .dark {
-  /* Clay Shop Luxury Dark Mode Palette */
+  /* Luxury Dark Mode Palette */
   --background: #121113;
   --foreground: #f4f3f1;
   --surface: #1a191d;
@@ -131,7 +131,7 @@ body {
   font-family: 'Playfair Display', 'Cormorant Garamond', Georgia, serif;
 }
 
-/* Clay Button Styles */
+/* Brand Pill Button Styles */
 .btn-clay {
   background: var(--accent);
   color: #ffffff;
@@ -175,7 +175,7 @@ body {
   background: var(--accent-light);
 }
 
-/* Soft Clay Card Container */
+/* Refined Product Card Container */
 .clay-card {
   background: var(--card);
   border: 1px solid var(--card-border);
