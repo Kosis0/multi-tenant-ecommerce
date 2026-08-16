@@ -51,21 +51,21 @@ export default function LandingPage() {
       {/* Hero Section */}
       <main className="max-w-6xl mx-auto w-full px-4 sm:px-6 py-12 sm:py-20 z-10 my-auto flex flex-col items-center text-center">
         
-        {/* Soft Clay Status Pill */}
+        {/* Clean Status Pill */}
         <div className="inline-flex items-center gap-2.5 px-4 py-1.5 rounded-full border border-[var(--border)] bg-[var(--surface)] shadow-xs text-xs font-semibold text-[var(--muted)] mb-8">
-          <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-          <span>Next-Gen Multi-Tenant Commerce Architecture</span>
+          <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
+          <span>Multi-Tenant Commerce Infrastructure</span>
         </div>
 
         <h1 className="font-editorial text-4xl sm:text-7xl font-medium tracking-tight mb-6 leading-[1.1] max-w-4xl text-[var(--foreground)]">
           Your Store. Your Brand.<br />
           <span className="italic text-[var(--accent-dark)] font-normal">
-            Sculpted with Luxury.
+            Engineered for Modern Commerce.
           </span>
         </h1>
 
         <p className="text-sm sm:text-base text-[var(--muted)] max-w-2xl mx-auto mb-10 leading-relaxed">
-          Launch a high-performance multi-tenant boutique complete with dynamic category browsing, flash sales, wishlist support, Naira (₦) payments, and full mobile responsiveness.
+          Launch independent boutique storefronts with dynamic category browsing, inventory management, customer reviews, wishlists, and seamless Naira (₦) payments.
         </p>
 
         {/* CTA Button Group */}
@@ -92,7 +92,7 @@ export default function LandingPage() {
               <h3 className="font-editorial text-2xl font-semibold text-[var(--foreground)] mt-1">Multi-Tenant Merchant Ecosystem</h3>
             </div>
             <div className="flex items-center gap-2">
-              <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-ping"></span>
+              <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
               <span className="text-xs font-mono font-bold text-emerald-600 dark:text-emerald-400">100% Isolated Tenants</span>
             </div>
           </div>
@@ -102,7 +102,7 @@ export default function LandingPage() {
               <div className="w-10 h-10 rounded-xl bg-[var(--surface)] border border-[var(--border)] text-[var(--accent-dark)] flex items-center justify-center font-bold text-sm">
                 01
               </div>
-              <h4 className="font-editorial text-lg font-semibold text-[var(--foreground)]">Instant Store Generation</h4>
+              <h4 className="font-editorial text-lg font-semibold text-[var(--foreground)]">Instant Store Provisioning</h4>
               <p className="text-xs text-[var(--muted)] leading-relaxed">
                 Create a new brand slug in seconds. The platform automatically provisions customer authentication, inventory models, and order registries.
               </p>
@@ -115,12 +115,12 @@ export default function LandingPage() {
               <div className="w-10 h-10 rounded-xl bg-[var(--surface)] border border-[var(--border)] text-[var(--accent-dark)] flex items-center justify-center font-bold text-sm">
                 02
               </div>
-              <h4 className="font-editorial text-lg font-semibold text-[var(--foreground)]">Clay Shop UI & Themes</h4>
+              <h4 className="font-editorial text-lg font-semibold text-[var(--foreground)]">Responsive Customer Experience</h4>
               <p className="text-xs text-[var(--muted)] leading-relaxed">
-                Full-featured luxury storefront equipped with responsive category filters, real-time price sliders, size selectors, and dual dark/light themes.
+                Feature-rich storefront equipped with responsive category filters, real-time price sliders, size selectors, customer reviews, and dual dark/light themes.
               </p>
               <div className="text-[11px] font-mono text-[var(--accent-dark)] font-bold">
-                Tailored for Mobile & Desktop
+                Optimized for Mobile & Desktop
               </div>
             </div>
 
@@ -155,7 +155,7 @@ export default function LandingPage() {
             <div className="w-12 h-12 rounded-2xl bg-[var(--accent-clay)] border border-[var(--border)] text-[var(--accent-dark)] flex items-center justify-center mb-6">
               <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>
             </div>
-            <h3 className="font-editorial text-xl font-semibold mb-2 text-[var(--foreground)]">Clay Shop UI Kit</h3>
+            <h3 className="font-editorial text-xl font-semibold mb-2 text-[var(--foreground)]">Conversion-Focused Storefronts</h3>
             <p className="text-[var(--muted)] text-xs leading-relaxed">
               Equipped with live flash sale countdowns, wishlist drawers, customer review galleries, and dark & light theme modes.
             </p>
@@ -175,7 +175,7 @@ export default function LandingPage() {
 
       {/* Footer */}
       <footer className="w-full max-w-6xl mx-auto py-8 border-t border-[var(--border)] text-center text-xs text-[var(--muted)] z-10">
-        &copy; {new Date().getFullYear()} Mercato Multi-Tenant Luxury Commerce Platform. All rights reserved.
+        &copy; {new Date().getFullYear()} Mercato Multi-Tenant Commerce Platform. All rights reserved.
       </footer>
     </div>
   );

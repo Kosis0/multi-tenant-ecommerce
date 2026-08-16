@@ -151,7 +151,7 @@ export default function StorefrontPage({ params }) {
 
   // Demo Store Fallback Data Generator (Rich Catalog for Demo & Initial State)
   const getDemoStoreData = (tenantSlug) => {
-    const name = tenantSlug ? tenantSlug.charAt(0).toUpperCase() + tenantSlug.slice(1) : 'Clay & Co';
+    const name = tenantSlug ? tenantSlug.charAt(0).toUpperCase() + tenantSlug.slice(1) : 'Mercato';
     return {
       store: { name: `${name} Official Boutique`, slug: tenantSlug },
       categories: [
@@ -164,13 +164,13 @@ export default function StorefrontPage({ params }) {
       products: [
         {
           id: 101,
-          title: `${name} Minimalist Clay Knit Runner`,
+          title: `${name} Minimalist Knit Runner`,
           price: 48500,
           original_price: 65000,
           stock: 15,
           image_url: 'https://images.unsplash.com/photo-1542291026-7eec264c27ff?auto=format&fit=crop&w=800&q=80',
           category: 'Shoes',
-          description: `Sculpted lightweight knit sneaker crafted for effortless daily mobility. Features responsive foam cushioning and earthy organic tones inspired by modern clay design.`,
+          description: `Sculpted lightweight knit sneaker crafted for effortless daily mobility. Features responsive foam cushioning, breathable upper, and ergonomic support.`,
           is_featured: true,
           is_new_arrival: true,
           rating: 4.9,
@@ -311,7 +311,7 @@ export default function StorefrontPage({ params }) {
           stock: 7,
           image_url: 'https://images.unsplash.com/photo-1587829741301-dc798b83add3?auto=format&fit=crop&w=800&q=80',
           category: 'Electronics',
-          description: '75% wireless mechanical keyboard with hot-swappable lubricated switches, PBT clay keycaps, and CNC aluminum frame.',
+          description: '75% wireless mechanical keyboard with hot-swappable lubricated switches, dual-shot PBT keycaps, and CNC aluminum frame.',
           is_featured: false,
           is_new_arrival: true,
           rating: 5.0,
@@ -782,7 +782,7 @@ export default function StorefrontPage({ params }) {
       
       {/* Top Banner Announcement Bar */}
       <div className="bg-[var(--accent-clay)] border-b border-[var(--border)] text-xs py-2 px-4 text-center text-[var(--accent-dark)] flex items-center justify-center gap-2 font-medium">
-        <span>Summer Clay Collection & Free Express Delivery Over ₦50,000!</span>
+        <span>Complimentary Express Delivery on Orders Over ₦50,000</span>
         <a href="#products-grid" className="font-bold underline hover:opacity-80 transition-opacity">Discover Now</a>
       </div>
 
@@ -1182,7 +1182,7 @@ export default function StorefrontPage({ params }) {
             <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 border-b border-[var(--border)] pb-4">
               <div className="space-y-1">
                 <div className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-[var(--accent-dark)]">
-                  <span className="w-2.5 h-2.5 rounded-full bg-[var(--accent)] inline-block animate-ping"></span>
+                  <span className="w-2 h-2 rounded-full bg-[var(--accent)] inline-block"></span>
                   <span>Limited Time Offer</span>
                 </div>
                 <h2 className="font-editorial text-3xl sm:text-4xl font-semibold tracking-tight text-[var(--foreground)]">Flash Deals</h2>
@@ -2190,12 +2190,12 @@ export default function StorefrontPage({ params }) {
         </AnimatePresence>
       </div>
 
-      {/* Footer (Clay Shop Minimal Editorial Footer) */}
+      {/* Footer */}
       <footer className="mt-20 py-10 border-t border-[var(--border)] bg-[var(--surface)] text-center text-xs font-medium text-[var(--muted)]">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-4">
           <p className="font-editorial text-lg text-[var(--foreground)] font-semibold">{getStoreDisplayName()}</p>
           <p className="text-xs text-[var(--muted)]">
-            &copy; {new Date().getFullYear()} {getStoreDisplayName()}. Crafted with Clay Luxury Commerce Engine.
+            &copy; {new Date().getFullYear()} {getStoreDisplayName()}. Powered by Mercato Commerce Platform.
           </p>
           <div className="flex items-center gap-4 text-xs font-semibold text-[var(--muted)]">
             <span className="hover:text-[var(--foreground)] cursor-pointer">Privacy</span>

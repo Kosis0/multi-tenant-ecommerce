@@ -109,7 +109,7 @@ export default function RegisterStore() {
               value={formData.storeName}
               onChange={handleNameChange}
               className="w-full px-4 py-3 bg-[var(--background)] border border-[var(--border)] rounded-2xl text-[var(--foreground)] text-xs outline-none focus:border-[var(--accent)] transition-colors"
-              placeholder="e.g. Clay Vintage & Co."
+              placeholder="e.g. Maison Aurelia"
             />
           </div>
 
@@ -125,7 +125,7 @@ export default function RegisterStore() {
               value={formData.slug}
               onChange={handleChange}
               className="w-full px-4 py-3 bg-[var(--background)] border border-[var(--border)] rounded-2xl text-[var(--foreground)] text-xs outline-none focus:border-[var(--accent)] transition-colors font-mono"
-              placeholder="clay-vintage"
+              placeholder="maison-aurelia"
             />
             <div className="text-[11px] font-mono text-[var(--muted)] mt-2">
               mercato.com/<span className="text-[var(--accent-dark)] font-bold">{formData.slug || 'slug'}</span>

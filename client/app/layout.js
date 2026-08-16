@@ -2,8 +2,8 @@ import "./globals.css";
 import { ThemeProvider } from "./ThemeContext";
 
 export const metadata = {
-  title: "Mercato — Clay Shop Luxury Commerce",
-  description: "Modern multi-tenant storefront with elegant clay-style design.",
+  title: "Mercato — Multi-Tenant Commerce Platform",
+  description: "Enterprise-grade multi-tenant commerce engine with independent storefronts, real-time inventory management, and payments.",
 };
 
 export default function RootLayout({ children }) {
