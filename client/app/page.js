@@ -168,6 +168,84 @@ export default function LandingPage() {
           </div>
         </motion.div>
 
+        {/* Live Demo Boutiques Showcase */}
+        <div className="mt-16 w-full text-left space-y-6">
+          <div className="flex flex-col sm:flex-row items-start sm:items-end justify-between gap-2 border-b border-[var(--border)] pb-4">
+            <div>
+              <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--accent-dark)] block">Explore Live Tenants</span>
+              <h3 className="font-editorial text-3xl font-semibold text-[var(--foreground)] mt-0.5">Curated Demo Boutiques</h3>
+            </div>
+            <p className="text-xs text-[var(--muted)] max-w-sm">
+              Click any boutique to experience live catalog browsing, multi-angle galleries, flash sales, and cart drawers.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
+            {[
+              {
+                slug: 'demo',
+                name: 'Mercato Flagship',
+                tagline: 'Spring / Summer Luxury Apparel & Knitwear',
+                image: 'https://images.unsplash.com/photo-1542291026-7eec264c27ff?auto=format&fit=crop&w=1200&q=85',
+                items: '16 Catalog Items',
+                theme: 'Clay & Terracotta',
+              },
+              {
+                slug: 'atelier',
+                name: 'Artisan Atelier',
+                tagline: 'Vegetable-Tanned Leather & 18k Solid Gold',
+                image: 'https://images.unsplash.com/photo-1548036328-c9fa89d128fa?auto=format&fit=crop&w=1200&q=85',
+                items: 'Fine Goods & Jewelry',
+                theme: 'Obsidian Noir',
+              },
+              {
+                slug: 'audio',
+                name: 'Studio Sound & Optics',
+                tagline: 'Titanium ANC Audio & Polarized Acetate',
+                image: 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?auto=format&fit=crop&w=1200&q=85',
+                items: 'Acoustics & Eyewear',
+                theme: 'Slate & Minimalist',
+              },
+            ].map((store) => (
+              <Link
+                key={store.slug}
+                href={`/${store.slug}`}
+                className="group relative rounded-3xl overflow-hidden border border-[var(--card-border)] bg-[var(--card)] clay-card transition-all hover:border-[var(--accent)]"
+              >
+                <div className="relative aspect-[16/10] w-full overflow-hidden bg-[var(--surface)]">
+                  <img
+                    src={store.image}
+                    alt={store.name}
+                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-[var(--card)] via-transparent to-transparent opacity-80" />
+                  <div className="absolute top-3 right-3">
+                    <span className="text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-full bg-[var(--surface)]/90 backdrop-blur-md text-[var(--foreground)] border border-[var(--border)] shadow-xs">
+                      {store.theme}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="p-6 space-y-2 text-left">
+                  <div className="flex items-center justify-between">
+                    <h4 className="font-editorial text-xl font-bold text-[var(--foreground)] group-hover:text-[var(--accent-dark)] transition-colors">
+                      {store.name}
+                    </h4>
+                    <span className="text-xs text-[var(--accent-dark)] font-bold">Visit ↗</span>
+                  </div>
+                  <p className="text-xs text-[var(--muted)] leading-relaxed">
+                    {store.tagline}
+                  </p>
+                  <div className="pt-2 flex items-center justify-between text-[11px] text-[var(--muted)] font-mono">
+                    <span>/{store.slug}</span>
+                    <span>{store.items}</span>
+                  </div>
+                </div>
+              </Link>
+            ))}
+          </div>
+        </div>
+
         {/* Feature Cards Grid */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-16 text-left w-full">
           <div className="p-8 border border-[var(--card-border)] rounded-3xl bg-[var(--card)] hover:border-[var(--accent)] transition-colors group shadow-soft">

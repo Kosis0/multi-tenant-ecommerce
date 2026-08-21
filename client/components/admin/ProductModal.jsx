@@ -222,10 +222,13 @@ export function ProductModal({
           {activeTab === 'variants' && (
             <div className="space-y-6">
               {/* Media Uploader */}
-              <div className="space-y-3 p-4 rounded-2xl bg-[var(--card-clay)] border border-[var(--border)]">
-                <label className="block text-xs font-semibold uppercase tracking-wider text-[var(--muted)]">
-                  Primary Product Image
-                </label>
+              <div className="space-y-4 p-4 rounded-2xl bg-[var(--card-clay)] border border-[var(--border)]">
+                <div className="flex items-center justify-between">
+                  <label className="block text-xs font-semibold uppercase tracking-wider text-[var(--muted)]">
+                    Primary Product Image & Gallery
+                  </label>
+                  <span className="text-[10px] text-[var(--accent-dark)] font-bold">High-Res Photography</span>
+                </div>
                 
                 <div className="flex flex-col sm:flex-row items-center gap-4">
                   <div className="relative w-20 h-24 rounded-2xl overflow-hidden bg-[var(--surface)] border border-[var(--border)] shrink-0">
@@ -260,6 +263,44 @@ export function ProductModal({
                         {uploadingImage ? 'Uploading Image...' : '📁 Upload Local File'}
                       </label>
                     </div>
+                  </div>
+                </div>
+
+                {/* 1-Click Curated Presets */}
+                <div className="pt-2 border-t border-[var(--border-light)] space-y-2">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--muted)] block">
+                    Quick Fill: Curated Studio Presets
+                  </span>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                    {[
+                      { name: 'Knit Sneakers', url: 'https://images.unsplash.com/photo-1542291026-7eec264c27ff?auto=format&fit=crop&w=1200&q=85', cat: 'Shoes', price: 48500 },
+                      { name: 'Terracotta Hoodie', url: 'https://images.unsplash.com/photo-1556905055-8f358a7a47b2?auto=format&fit=crop&w=1200&q=85', cat: 'Apparel', price: 32000 },
+                      { name: 'Leather Tote', url: 'https://images.unsplash.com/photo-1548036328-c9fa89d128fa?auto=format&fit=crop&w=1200&q=85', cat: 'Bags', price: 68000 },
+                      { name: 'Studio ANC Audio', url: 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?auto=format&fit=crop&w=1200&q=85', cat: 'Electronics', price: 89000 },
+                      { name: 'Sapphire Watch', url: 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?auto=format&fit=crop&w=1200&q=85', cat: 'Accessories', price: 55000 },
+                      { name: 'Gold Herringbone', url: 'https://images.unsplash.com/photo-1599643478518-a784e5dc4c8f?auto=format&fit=crop&w=1200&q=85', cat: 'Jewelry', price: 125000 },
+                      { name: 'Emerald Signet', url: 'https://images.unsplash.com/photo-1605100804763-247f67b3557e?auto=format&fit=crop&w=1200&q=85', cat: 'Jewelry', price: 98000 },
+                      { name: 'Oud Perfume', url: 'https://images.unsplash.com/photo-1592945403244-b3fbafd7f539?auto=format&fit=crop&w=1200&q=85', cat: 'Accessories', price: 45000 },
+                    ].map((preset, idx) => (
+                      <button
+                        key={idx}
+                        type="button"
+                        onClick={() => {
+                          setProductForm((prev) => ({
+                            ...prev,
+                            image_url: preset.url,
+                            category: prev.category === 'General' || !prev.category ? preset.cat : prev.category,
+                            price: prev.price || preset.price,
+                          }));
+                        }}
+                        className="flex items-center gap-2 p-2 rounded-xl bg-[var(--surface)] hover:bg-[var(--card)] border border-[var(--border)] text-left transition-all hover:border-[var(--accent)] cursor-pointer"
+                      >
+                        <div className="relative w-8 h-8 rounded-lg overflow-hidden shrink-0 bg-[var(--background)]">
+                          <Image src={preset.url} alt={preset.name} fill className="object-cover" sizes="32px" />
+                        </div>
+                        <span className="text-[11px] font-semibold text-[var(--foreground)] truncate">{preset.name}</span>
+                      </button>
+                    ))}
                   </div>
                 </div>
               </div>

@@ -68,6 +68,49 @@ export function StorefrontConfigPanel({
         </button>
       </div>
 
+      {/* Quick Theme Presets */}
+      <div className="space-y-2 p-4 rounded-2xl bg-[var(--card-clay)] border border-[var(--border)]">
+        <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--muted)] block">
+          1-Click Editorial Hero Presets
+        </span>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+          {[
+            {
+              label: 'Contemporary Luxury',
+              badge: 'Spring / Summer 2026 Collection',
+              title: 'Admire Contemporary Luxury & Looks',
+              subtitle: 'Discover curated high-fashion silhouettes, artisan leather goods, and modern lifestyle essentials with seamless Naira checkout.',
+            },
+            {
+              label: 'Urban Streetwear',
+              badge: 'Limited Drop 04 // 2026',
+              title: 'Heavyweight Silhouettes & Daily Footwear',
+              subtitle: 'Crafted for effortless mobility. Minimalist knits, oversized cotton hoodies, and premium streetwear accessories.',
+            },
+            {
+              label: 'Artisan Atelier',
+              badge: 'Handcrafted Heritage Goods',
+              title: 'Master Leathercraft & Fine Jewelry',
+              subtitle: 'Full-grain Italian vegetable-tanned leather, solid 18k gold jewelry, and bespoke timepieces engineered to last.',
+            },
+          ].map((theme, i) => (
+            <button
+              key={i}
+              type="button"
+              onClick={() => {
+                setHeroBadge(theme.badge);
+                setHeroTitle(theme.title);
+                setHeroSubtitle(theme.subtitle);
+              }}
+              className="p-3 rounded-xl bg-[var(--surface)] hover:bg-[var(--card)] border border-[var(--border)] text-left transition-all hover:border-[var(--accent)] cursor-pointer space-y-1"
+            >
+              <span className="text-xs font-bold text-[var(--foreground)] block">{theme.label}</span>
+              <span className="text-[10px] text-[var(--muted)] block line-clamp-2">{theme.title}</span>
+            </button>
+          ))}
+        </div>
+      </div>
+
       {/* Hero Content Settings Form */}
       <form onSubmit={(e) => { e.preventDefault(); onSaveHeroSettings(); }} className="space-y-5">
         <Input
