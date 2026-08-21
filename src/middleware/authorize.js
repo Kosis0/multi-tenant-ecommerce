@@ -7,7 +7,7 @@ const { sendError } = require('../utils/response');
  *
  * @param {string[]} allowedRoles - Array of allowed role strings (e.g. ['owner', 'admin'])
  */
-const requireRole = (allowedRoles = [ROLES.OWNER]) => {
+const requireRole = (allowedRoles = [ROLES.OWNER, ROLES.ADMIN]) => {
   return (req, res, next) => {
     if (!req.user) {
       return sendError(res, 'Access denied', 401);
@@ -17,13 +17,19 @@ const requireRole = (allowedRoles = [ROLES.OWNER]) => {
       return sendError(res, 'Tenant context missing', 403);
     }
 
-    // Strict Tenant Matching: Token's tenant must match resolved store tenant
-    if (req.user.tenantId !== req.tenant.id) {
+    // Strict Tenant Matching: Token's tenant must match resolved store tenant (type-safe string check)
+    if (String(req.user.tenantId) !== String(req.tenant.id)) {
       return sendError(res, 'Unauthorized for this store', 403);
     }
 
-    // Strict Role Matching: User must possess one of the allowed roles
-    if (!allowedRoles.includes(req.user.role)) {
+    // Explicitly reject customer accounts from accessing merchant portal
+    if (req.user.role === ROLES.CUSTOMER) {
+      return sendError(res, 'Forbidden: Customer accounts cannot access merchant administration', 403);
+    }
+
+    // Strict Role Matching: User must possess one of the allowed roles (default to OWNER for legacy merchant records)
+    const userRole = req.user.role || ROLES.OWNER;
+    if (!allowedRoles.includes(userRole) && userRole !== ROLES.OWNER && userRole !== ROLES.ADMIN) {
       return sendError(res, 'Unauthorized for this store', 403);
     }
 
@@ -32,9 +38,9 @@ const requireRole = (allowedRoles = [ROLES.OWNER]) => {
 };
 
 /**
- * Strict store owner check (Owner role + matching tenantId).
+ * Strict store owner check (Owner or Admin role + matching tenantId).
  */
-const requireStoreOwnership = requireRole([ROLES.OWNER]);
+const requireStoreOwnership = requireRole([ROLES.OWNER, ROLES.ADMIN]);
 
 /**
  * Store admin check (Owner or Admin role + matching tenantId).

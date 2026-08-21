@@ -70,16 +70,23 @@ const registerStore = async ({ name, slug, email, password }) => {
 /**
  * Authenticates store owner / admin.
  */
-const loginOwner = async ({ email, password }) => {
+const loginOwner = async ({ email, password, tenantSlug }) => {
   const normalizedEmail = email.toLowerCase().trim();
 
-  const { rows } = await pool.query(
-    `SELECT u.*, t.slug AS tenant_slug 
-     FROM users u 
-     JOIN tenants t ON u.tenant_id = t.id 
-     WHERE u.email = $1`,
-    [normalizedEmail]
-  );
+  let query = `
+    SELECT u.*, t.slug AS tenant_slug 
+    FROM users u 
+    JOIN tenants t ON u.tenant_id = t.id 
+    WHERE u.email = $1
+  `;
+  const queryParams = [normalizedEmail];
+
+  if (tenantSlug && typeof tenantSlug === 'string' && tenantSlug.trim()) {
+    query += ` AND t.slug = $2`;
+    queryParams.push(tenantSlug.toLowerCase().trim());
+  }
+
+  const { rows } = await pool.query(query, queryParams);
 
   if (rows.length === 0) {
     throw new UnauthorizedError('Invalid credentials');
@@ -95,11 +102,11 @@ const loginOwner = async ({ email, password }) => {
     {
       userId: user.id,
       tenantId: user.tenant_id,
-      role: user.role,
+      role: user.role || ROLES.OWNER,
       tokenVersion: user.token_version || 1
     },
     env.JWT_SECRET,
-    { expiresIn: '24h' }
+    { expiresIn: '30d' }
   );
 
   return {

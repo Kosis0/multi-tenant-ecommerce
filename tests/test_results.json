@@ -73,7 +73,7 @@
         "passed": true,
         "details": {
           "status": 404,
-          "error": "Product e24c58b7-112c-44b9-ba72-c312551eabcc not found in this store"
+          "error": "Product 39be3158-b696-4b63-9760-328b4565b62e not found in this store"
         }
       }
     ],
@@ -414,8 +414,8 @@
         "passed": true,
         "details": {
           "store": {
-            "name": "Adversarial Store A 1787332915058",
-            "slug": "adv-tenant-a-1787332915058",
+            "name": "Adversarial Store A 1787333434106",
+            "slug": "adv-tenant-a-1787333434106",
             "show_flash_deals": true,
             "hero_product_id": null,
             "hero_badge": null,
@@ -471,6 +471,6 @@
       }
     ]
   },
-  "durationMs": 58319,
-  "timestamp": "2026-08-21T17:22:53.377Z"
+  "durationMs": 47283,
+  "timestamp": "2026-08-21T17:31:21.390Z"
 }
