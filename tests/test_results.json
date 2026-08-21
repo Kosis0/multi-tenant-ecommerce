@@ -1,0 +1,476 @@
+{
+  "total": 62,
+  "passed": 62,
+  "failed": 0,
+  "suites": {
+    "1. Multi-Tenant Boundary Isolation": [
+      {
+        "testName": "TC-MT-01: Tenant B cannot read Tenant A product by ID (404 Not Found)",
+        "passed": true,
+        "details": {
+          "status": 404
+        }
+      },
+      {
+        "testName": "TC-MT-02: Tenant B JWT cannot update Tenant A product with Tenant A slug (403 Forbidden)",
+        "passed": true,
+        "details": {
+          "status": 403
+        }
+      },
+      {
+        "testName": "TC-MT-03: Tenant B cannot update Tenant A product using Tenant B slug (404/403 Isolated)",
+        "passed": true,
+        "details": {
+          "status": 404
+        }
+      },
+      {
+        "testName": "TC-MT-04: Tenant B cannot delete Tenant A product (403 & Product Preserved)",
+        "passed": true,
+        "details": {
+          "status": 403,
+          "preserved": true
+        }
+      },
+      {
+        "testName": "TC-MT-05: Tenant B cannot list Tenant A admin orders (403 Forbidden)",
+        "passed": true,
+        "details": {
+          "status": 403
+        }
+      },
+      {
+        "testName": "TC-MT-06: Tenant B cannot update Tenant A order status (403 Forbidden)",
+        "passed": true,
+        "details": {
+          "status": 403
+        }
+      },
+      {
+        "testName": "TC-MT-07: Tenant B cannot access Tenant A admin analytics (403 Forbidden)",
+        "passed": true,
+        "details": {
+          "status": 403
+        }
+      },
+      {
+        "testName": "TC-MT-08: Tenant B cannot update Tenant A store settings (403 Forbidden)",
+        "passed": true,
+        "details": {
+          "status": 403
+        }
+      },
+      {
+        "testName": "TC-MT-09: Customer A token rejected on Tenant B customer endpoints (403 Forbidden)",
+        "passed": true,
+        "details": {
+          "status": 403
+        }
+      },
+      {
+        "testName": "TC-MT-10: Cross-tenant product order spoofing rejected (404 Not Found in this store)",
+        "passed": true,
+        "details": {
+          "status": 404,
+          "error": "Product 9768607d-30ae-4560-9bb1-26554c11b58a not found in this store"
+        }
+      }
+    ],
+    "2. Privilege Escalation & RBAC": [
+      {
+        "testName": "TC-PE-01: Unauthenticated request cannot create product (401 Unauthorized)",
+        "passed": true,
+        "details": {
+          "status": 401
+        }
+      },
+      {
+        "testName": "TC-PE-02: Unauthenticated request cannot delete product (401 Unauthorized)",
+        "passed": true,
+        "details": {
+          "status": 401
+        }
+      },
+      {
+        "testName": "TC-PE-03: Unauthenticated request cannot list admin orders (401 Unauthorized)",
+        "passed": true,
+        "details": {
+          "status": 401
+        }
+      },
+      {
+        "testName": "TC-PE-04: Unauthenticated request cannot change order status (401 Unauthorized)",
+        "passed": true,
+        "details": {
+          "status": 401
+        }
+      },
+      {
+        "testName": "TC-PE-05: Unauthenticated request cannot access admin stats (401 Unauthorized)",
+        "passed": true,
+        "details": {
+          "status": 401
+        }
+      },
+      {
+        "testName": "TC-PE-06: Customer token cannot create product (403 Forbidden)",
+        "passed": true,
+        "details": {
+          "status": 403
+        }
+      },
+      {
+        "testName": "TC-PE-07: Customer token cannot view admin orders list (403 Forbidden)",
+        "passed": true,
+        "details": {
+          "status": 403
+        }
+      },
+      {
+        "testName": "TC-PE-08: Customer token cannot access admin stats (403 Forbidden)",
+        "passed": true,
+        "details": {
+          "status": 403
+        }
+      },
+      {
+        "testName": "TC-PE-09: Customer token cannot create category (403 Forbidden)",
+        "passed": true,
+        "details": {
+          "status": 403
+        }
+      },
+      {
+        "testName": "TC-PE-10: Customer token cannot update tenant settings (403 Forbidden)",
+        "passed": true,
+        "details": {
+          "status": 403
+        }
+      }
+    ],
+    "3. Auth & JWT Robustness": [
+      {
+        "testName": "TC-JWT-01: Malformed garbage JWT token rejected (403 Forbidden)",
+        "passed": true,
+        "details": {
+          "status": 403
+        }
+      },
+      {
+        "testName": "TC-JWT-02: Expired JWT token rejected (403 Forbidden)",
+        "passed": true,
+        "details": {
+          "status": 403
+        }
+      },
+      {
+        "testName": "TC-JWT-03: Forged signature token rejected (403 Forbidden)",
+        "passed": true,
+        "details": {
+          "status": 403
+        }
+      },
+      {
+        "testName": "TC-JWT-04: Alg=none unsigned token rejected (403 Forbidden)",
+        "passed": true,
+        "details": {
+          "status": 403
+        }
+      },
+      {
+        "testName": "TC-JWT-05: Malformed Authorization header without Bearer prefix rejected (401/403)",
+        "passed": true,
+        "details": {
+          "status": 401
+        }
+      },
+      {
+        "testName": "TC-JWT-06: Empty Authorization header rejected (401 Unauthorized)",
+        "passed": true,
+        "details": {
+          "status": 401
+        }
+      },
+      {
+        "testName": "TC-JWT-07: Token with mismatched tenant claim rejected (403 Forbidden)",
+        "passed": true,
+        "details": {
+          "status": 403
+        }
+      }
+    ],
+    "4. Concurrency & Race Conditions": [
+      {
+        "testName": "TC-CR-01: Product stock race: exactly 3 succeed, 7 fail with 400, final stock = 0",
+        "passed": true,
+        "details": {
+          "successCount": 3,
+          "failedCount": 7,
+          "finalStock": 0
+        }
+      },
+      {
+        "testName": "TC-CR-02: Variant stock race: exactly 2 succeed, 6 fail with 400, final stock = 0",
+        "passed": true,
+        "details": {
+          "successCount": 2,
+          "failedCount": 6,
+          "finalVarStock": 0
+        }
+      },
+      {
+        "testName": "TC-CR-03: Order on 0-stock product immediately rejected (409/400 Insufficient Stock)",
+        "passed": true,
+        "details": {
+          "status": 409,
+          "error": "Insufficient stock for product Tenant A Rare Item (Limited)"
+        }
+      }
+    ],
+    "5. Input Validation & Injection Vectors": [
+      {
+        "testName": "TC-IV-01: Negative product price rejected by validator (400 Bad Request)",
+        "passed": true,
+        "details": {
+          "status": 400
+        }
+      },
+      {
+        "testName": "TC-IV-02: Negative product stock rejected by validator (400 Bad Request)",
+        "passed": true,
+        "details": {
+          "status": 400
+        }
+      },
+      {
+        "testName": "TC-IV-03: Empty whitespace product title rejected (400 Bad Request)",
+        "passed": true,
+        "details": {
+          "status": 400
+        }
+      },
+      {
+        "testName": "TC-IV-04: Non-numeric price string rejected (400 Bad Request)",
+        "passed": true,
+        "details": {
+          "status": 400
+        }
+      },
+      {
+        "testName": "TC-IV-05: Reserved system slug 'admin' registration blocked (400 Bad Request)",
+        "passed": true,
+        "details": {
+          "slug": "admin",
+          "status": 400
+        }
+      },
+      {
+        "testName": "TC-IV-05: Reserved system slug 'api' registration blocked (400 Bad Request)",
+        "passed": true,
+        "details": {
+          "slug": "api",
+          "status": 400
+        }
+      },
+      {
+        "testName": "TC-IV-05: Reserved system slug 'dashboard' registration blocked (400 Bad Request)",
+        "passed": true,
+        "details": {
+          "slug": "dashboard",
+          "status": 400
+        }
+      },
+      {
+        "testName": "TC-IV-05: Reserved system slug 'checkout' registration blocked (400 Bad Request)",
+        "passed": true,
+        "details": {
+          "slug": "checkout",
+          "status": 400
+        }
+      },
+      {
+        "testName": "TC-IV-05: Reserved system slug 'webhooks' registration blocked (400 Bad Request)",
+        "passed": true,
+        "details": {
+          "slug": "webhooks",
+          "status": 400
+        }
+      },
+      {
+        "testName": "TC-IV-05: Reserved system slug 'login' registration blocked (400 Bad Request)",
+        "passed": true,
+        "details": {
+          "slug": "login",
+          "status": 400
+        }
+      },
+      {
+        "testName": "TC-IV-06: Slug with spaces and symbols rejected by regex validator (400 Bad Request)",
+        "passed": true,
+        "details": {
+          "status": 400
+        }
+      },
+      {
+        "testName": "TC-IV-07: Weak merchant password (<8 chars) rejected (400 Bad Request)",
+        "passed": true,
+        "details": {
+          "status": 400
+        }
+      },
+      {
+        "testName": "TC-IV-08: Weak customer password (<8 chars) rejected (400 Bad Request)",
+        "passed": true,
+        "details": {
+          "status": 400
+        }
+      },
+      {
+        "testName": "TC-IV-09: Duplicate tenant slug registration returns Conflict (409/400)",
+        "passed": true,
+        "details": {
+          "status": 409
+        }
+      },
+      {
+        "testName": "TC-IV-10: Order creation with empty items array rejected (400 Bad Request)",
+        "passed": true,
+        "details": {
+          "status": 400
+        }
+      },
+      {
+        "testName": "TC-IV-11: Order creation with negative quantity rejected (400 Bad Request)",
+        "passed": true,
+        "details": {
+          "status": 400
+        }
+      },
+      {
+        "testName": "TC-IV-12: SQL injection in product search sanitized via parameterized queries (200 OK)",
+        "passed": true,
+        "details": {
+          "status": 200
+        }
+      },
+      {
+        "testName": "TC-IV-13: SQL injection in category parameter parameterized safely (200 OK & Table Intact)",
+        "passed": true,
+        "details": {
+          "status": 200,
+          "tableIntact": true
+        }
+      },
+      {
+        "testName": "TC-IV-14: Malformed UUID in route param handled gracefully (400/404, No 500)",
+        "passed": true,
+        "details": {
+          "status": 400
+        }
+      },
+      {
+        "testName": "TC-IV-15: Invalid order status enum rejected by validator (400 Bad Request)",
+        "passed": true,
+        "details": {
+          "status": 400
+        }
+      },
+      {
+        "testName": "TC-IV-16: Payload exceeding maximum schema boundary (>5000 chars) rejected (400 Bad Request)",
+        "passed": true,
+        "details": {
+          "status": 400
+        }
+      }
+    ],
+    "6. Frontend Static & Edge Case Verification": [
+      {
+        "testName": "TC-FE-01: Client ESLint static analysis passed with 0 errors",
+        "passed": true,
+        "details": {}
+      },
+      {
+        "testName": "TC-FE-02: Client Next.js production build succeeded with 0 compilation errors",
+        "passed": true,
+        "details": {}
+      },
+      {
+        "testName": "TC-FE-03: API returns empty products array gracefully for zero-match query (200 OK)",
+        "passed": true,
+        "details": {
+          "count": 0
+        }
+      },
+      {
+        "testName": "TC-FE-04: Product with null image handled seamlessly (201 Created)",
+        "passed": true,
+        "details": {
+          "status": 201
+        }
+      },
+      {
+        "testName": "TC-FE-05: Store settings payload provides fallback defaults for storefront hero",
+        "passed": true,
+        "details": {
+          "store": {
+            "name": "Adversarial Store A 1787332332222",
+            "slug": "adv-tenant-a-1787332332222",
+            "show_flash_deals": true,
+            "hero_product_id": null,
+            "hero_badge": null,
+            "hero_title": null,
+            "hero_subtitle": null
+          }
+        }
+      }
+    ],
+    "7. Subsystems & Security Hardening": [
+      {
+        "testName": "TC-SS-01: Cross-tenant wishlist product insertion rejected (404 Not Found in this store)",
+        "passed": true,
+        "details": {
+          "status": 404
+        }
+      },
+      {
+        "testName": "TC-SS-02: Out-of-bounds review ratings (>5 or <1) rejected by validator (400 Bad Request)",
+        "passed": true,
+        "details": {
+          "resHigh": 400,
+          "resLow": 400
+        }
+      },
+      {
+        "testName": "TC-SS-03: Submitting review to foreign tenant product rejected (404 Not Found)",
+        "passed": true,
+        "details": {
+          "status": 404
+        }
+      },
+      {
+        "testName": "TC-SS-04: XSS vector strings stored without SQL corruption or unhandled server crash",
+        "passed": true,
+        "details": {
+          "status": 201
+        }
+      },
+      {
+        "testName": "TC-SS-05: Unauthenticated upload attempt blocked (401 Unauthorized)",
+        "passed": true,
+        "details": {
+          "status": 401
+        }
+      },
+      {
+        "testName": "TC-SS-06: Malformed webhook payload rejected (400 Bad Request)",
+        "passed": true,
+        "details": {
+          "status": 400
+        }
+      }
+    ]
+  },
+  "durationMs": 49634,
+  "timestamp": "2026-08-21T17:13:01.857Z"
+}

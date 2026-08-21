@@ -1,8 +1,10 @@
 'use client';
 
 import Link from 'next/link';
-import Image from 'next/image';
+import { motion } from 'framer-motion';
 import { useTheme } from './ThemeContext';
+import { Button } from '@/components/ui/Button';
+import { Badge } from '@/components/ui/Badge';
 
 export default function LandingPage() {
   const { theme, toggleTheme } = useTheme();
@@ -10,8 +12,8 @@ export default function LandingPage() {
   return (
     <div className="flex-1 flex flex-col min-h-screen bg-[var(--background)] text-[var(--foreground)] transition-colors duration-300 relative overflow-hidden">
       
-      {/* Background Decorative Clay Gradients */}
-      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[500px] bg-gradient-to-b from-[var(--accent-light)] to-transparent rounded-full blur-3xl pointer-events-none -z-10 opacity-70"></div>
+      {/* Background Decorative Ambient Clay Glow */}
+      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[850px] h-[550px] bg-gradient-to-b from-[var(--accent-light)] to-transparent rounded-full blur-3xl pointer-events-none -z-10 opacity-75" />
 
       {/* Header / Brand Nav */}
       <header className="w-full max-w-6xl mx-auto py-6 px-4 sm:px-6 flex items-center justify-between z-20">
@@ -25,24 +27,28 @@ export default function LandingPage() {
           </div>
         </div>
 
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-3 sm:gap-4">
+          <Link
+            href="/demo"
+            className="hidden sm:inline-flex text-xs font-semibold text-[var(--muted)] hover:text-[var(--foreground)] transition-colors"
+          >
+            Live Demo
+          </Link>
+
           {/* Theme Toggle Button */}
           <button
             onClick={toggleTheme}
-            className="w-9 h-9 rounded-full border border-[var(--border)] bg-[var(--surface)] hover:bg-[var(--card-clay)] text-[var(--foreground)] flex items-center justify-center transition-transform hover:scale-105 shadow-xs"
+            className="w-9 h-9 rounded-full border border-[var(--border)] bg-[var(--surface)] hover:bg-[var(--card-clay)] text-[var(--foreground)] flex items-center justify-center transition-transform hover:scale-105 shadow-xs cursor-pointer"
             title={`Switch to ${theme === 'dark' ? 'Light' : 'Dark'} Mode`}
           >
             {theme === 'dark' ? (
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
             ) : (
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
             )}
           </button>
 
-          <Link 
-            href="/register-store" 
-            className="btn-clay text-xs px-5 py-2.5 shadow-md"
-          >
+          <Link href="/register-store" className="btn-clay text-xs px-5 py-2.5 shadow-md">
             Create Store
           </Link>
         </div>
@@ -51,49 +57,72 @@ export default function LandingPage() {
       {/* Hero Section */}
       <main className="max-w-6xl mx-auto w-full px-4 sm:px-6 py-12 sm:py-20 z-10 my-auto flex flex-col items-center text-center">
         
-        {/* Clean Status Pill */}
-        <div className="inline-flex items-center gap-2.5 px-4 py-1.5 rounded-full border border-[var(--border)] bg-[var(--surface)] shadow-xs text-xs font-semibold text-[var(--muted)] mb-8">
-          <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
-          <span>Multi-Tenant Commerce Infrastructure</span>
-        </div>
+        {/* Status Tag */}
+        <motion.div
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="mb-8"
+        >
+          <Badge variant="clay" size="md" dot>
+            Next-Gen Multi-Tenant Commerce Infrastructure
+          </Badge>
+        </motion.div>
 
-        <h1 className="font-editorial text-4xl sm:text-7xl font-medium tracking-tight mb-6 leading-[1.1] max-w-4xl text-[var(--foreground)]">
+        <motion.h1
+          initial={{ opacity: 0, y: 15 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5 }}
+          className="font-editorial text-4xl sm:text-7xl font-medium tracking-tight mb-6 leading-[1.08] max-w-4xl text-[var(--foreground)]"
+        >
           Your Store. Your Brand.<br />
           <span className="italic text-[var(--accent-dark)] font-normal">
             Engineered for Modern Commerce.
           </span>
-        </h1>
+        </motion.h1>
 
-        <p className="text-sm sm:text-base text-[var(--muted)] max-w-2xl mx-auto mb-10 leading-relaxed">
-          Launch independent boutique storefronts with dynamic category browsing, inventory management, customer reviews, wishlists, and seamless Naira (₦) payments.
-        </p>
+        <motion.p
+          initial={{ opacity: 0, y: 15 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, delay: 0.1 }}
+          className="text-sm sm:text-base text-[var(--muted)] max-w-2xl mx-auto mb-10 leading-relaxed font-sans"
+        >
+          Launch independent boutique storefronts with dynamic category filtering, real-time inventory management, customer reviews, wishlists, and seamless Naira (₦) payments.
+        </motion.p>
 
         {/* CTA Button Group */}
-        <div className="flex flex-col sm:flex-row items-center justify-center gap-4 w-full max-w-md mx-auto mb-16">
-          <Link 
-            href="/register-store" 
-            className="btn-clay w-full sm:w-auto px-8 py-3.5 text-xs uppercase tracking-wider font-bold shadow-lg"
-          >
-            Launch Your Store
+        <motion.div
+          initial={{ opacity: 0, y: 15 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, delay: 0.2 }}
+          className="flex flex-col sm:flex-row items-center justify-center gap-4 w-full max-w-md mx-auto mb-16"
+        >
+          <Link href="/register-store" className="w-full sm:w-auto">
+            <Button variant="clay" size="lg" className="w-full">
+              Launch Your Store
+            </Button>
           </Link>
-          <Link 
-            href="/demo" 
-            className="btn-clay-outline w-full sm:w-auto px-8 py-3.5 text-xs uppercase tracking-wider font-bold"
-          >
-            Explore Demo Store ↗
+          <Link href="/demo" className="w-full sm:w-auto">
+            <Button variant="outline" size="lg" className="w-full">
+              Explore Demo Store ↗
+            </Button>
           </Link>
-        </div>
+        </motion.div>
 
         {/* Platform Architecture & Live Ecosystem Showcase */}
-        <div className="w-full max-w-5xl rounded-3xl border border-[var(--card-border)] bg-[var(--card)] p-6 sm:p-10 shadow-2xl relative overflow-hidden">
+        <motion.div
+          initial={{ opacity: 0, scale: 0.98 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ duration: 0.6, delay: 0.3 }}
+          className="w-full max-w-5xl rounded-3xl border border-[var(--card-border)] bg-[var(--card)] p-6 sm:p-10 shadow-2xl relative overflow-hidden"
+        >
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between pb-6 mb-8 border-b border-[var(--border)] gap-4">
             <div className="text-left">
               <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--accent-dark)] block">Platform Architecture</span>
               <h3 className="font-editorial text-2xl font-semibold text-[var(--foreground)] mt-1">Multi-Tenant Merchant Ecosystem</h3>
             </div>
             <div className="flex items-center gap-2">
-              <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
-              <span className="text-xs font-mono font-bold text-emerald-600 dark:text-emerald-400">100% Isolated Tenants</span>
+              <span className="w-2 h-2 rounded-full bg-emerald-500" />
+              <span className="text-xs font-mono font-bold text-emerald-600 dark:text-emerald-400">100% Isolated Data Pipelines</span>
             </div>
           </div>
 
@@ -137,7 +166,7 @@ export default function LandingPage() {
               </div>
             </div>
           </div>
-        </div>
+        </motion.div>
 
         {/* Feature Cards Grid */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-16 text-left w-full">

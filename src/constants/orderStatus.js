@@ -1,0 +1,20 @@
+const ORDER_STATUS = {
+  PENDING: 'pending',
+  PAID: 'paid',
+  SHIPPED: 'shipped',
+  DELIVERED: 'delivered',
+  CANCELLED: 'cancelled'
+};
+
+const VALID_ORDER_STATUSES = [
+  ORDER_STATUS.PENDING,
+  ORDER_STATUS.PAID,
+  ORDER_STATUS.SHIPPED,
+  ORDER_STATUS.DELIVERED,
+  ORDER_STATUS.CANCELLED
+];
+
+module.exports = {
+  ORDER_STATUS,
+  VALID_ORDER_STATUSES
+};
