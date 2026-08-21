@@ -4,6 +4,14 @@ import { ThemeProvider } from "./ThemeContext";
 export const metadata = {
   title: "Mercato — Multi-Tenant Commerce Platform",
   description: "Enterprise-grade multi-tenant commerce engine with independent storefronts, real-time inventory management, and payments.",
+  icons: {
+    icon: [
+      { url: '/icon.svg', type: 'image/svg+xml' },
+      { url: '/favicon.ico' },
+    ],
+    shortcut: '/icon.svg',
+    apple: '/icon.svg',
+  },
 };
 
 export default function RootLayout({ children }) {

@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+  <defs>
+    <linearGradient id="brandBg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#e8a598" />
+      <stop offset="100%" stop-color="#d97757" />
+    </linearGradient>
+  </defs>
+  
+  <rect width="64" height="64" rx="16" fill="url(#brandBg)" />
+  
+  <!-- Stylized Boutique Serif 'M' -->
+  <path d="M18 45 L18 21 L27 37 L32 37 L41 21 L41 45 L46 45 L46 17 L39 17 L30 33 L30 33 L21 17 L14 17 L14 45 Z" fill="#ffffff" />
+</svg>

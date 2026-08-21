@@ -26,6 +26,14 @@ export async function generateMetadata({ params }) {
   return {
     title: `${tenant.charAt(0).toUpperCase() + tenant.slice(1)} Store`,
     description: `Welcome to the ${tenant} store.`,
+    icons: {
+      icon: [
+        { url: '/icon.svg', type: 'image/svg+xml' },
+        { url: '/favicon.ico' },
+      ],
+      shortcut: '/icon.svg',
+      apple: '/icon.svg',
+    },
   };
 }
 
