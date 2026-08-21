@@ -15,10 +15,10 @@ const listCategories = async (tenantId) => {
 /**
  * Creates a new category for a store tenant.
  */
-const createCategory = async (tenantId, { name, icon = '📦' }) => {
+const createCategory = async (tenantId, { name, icon = null }) => {
   const { rows } = await pool.query(
     'INSERT INTO categories (tenant_id, name, icon) VALUES ($1, $2, $3) RETURNING *',
-    [tenantId, name.trim(), icon || '📦']
+    [tenantId, name.trim(), icon || null]
   );
   return rows[0];
 };

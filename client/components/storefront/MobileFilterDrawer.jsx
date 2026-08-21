@@ -119,8 +119,8 @@ export function MobileFilterDrawer({
           <div className="grid grid-cols-3 gap-2">
             {[
               { val: 0, label: 'All' },
-              { val: 4, label: '★ 4.0+' },
-              { val: 4.5, label: '★ 4.5+' },
+              { val: 4, label: '4.0+ Stars' },
+              { val: 4.5, label: '4.5+ Stars' },
             ].map((r) => (
               <button
                 key={r.val}

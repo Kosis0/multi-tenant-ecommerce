@@ -14,8 +14,10 @@ export function Stepper({
 }) {
   if (currentStep === 'cancelled') {
     return (
-      <div className={`flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-red-500/10 border border-red-500/20 text-red-600 dark:text-red-400 text-xs font-bold uppercase tracking-wider ${className}`}>
-        <span>✕</span>
+      <div className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-red-500/10 border border-red-500/20 text-red-600 dark:text-red-400 text-xs font-bold uppercase tracking-wider ${className}`}>
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+          <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+        </svg>
         <span>Order Cancelled</span>
       </div>
     );
@@ -53,7 +55,13 @@ export function Stepper({
                     : 'bg-[var(--card)] text-[var(--muted)] border-[var(--border)]'
                 }`}
               >
-                {isCompleted ? '✓' : idx + 1}
+                {isCompleted ? (
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
+                    <polyline points="20 6 9 17 4 12"/>
+                  </svg>
+                ) : (
+                  idx + 1
+                )}
               </div>
               <span
                 className={`text-[9px] sm:text-[10px] font-bold uppercase tracking-wider mt-1.5 ${

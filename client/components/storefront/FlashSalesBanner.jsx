@@ -20,8 +20,10 @@ export function FlashSalesBanner({
         {/* Header Strip: Title + Countdown Timer */}
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pb-6 border-b border-[var(--border)]">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-[var(--badge-sale)] text-white flex items-center justify-center shadow-xs font-bold text-lg">
-              ⚡
+            <div className="w-10 h-10 rounded-2xl bg-[var(--badge-sale)] text-white flex items-center justify-center shadow-xs">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
+              </svg>
             </div>
             <div>
               <div className="flex items-center gap-2">
@@ -97,7 +99,11 @@ export function FlashSalesBanner({
                         sizes="(max-width: 768px) 100vw, 250px"
                       />
                     ) : (
-                      <div className="w-full h-full flex items-center justify-center text-2xl">⚡</div>
+                      <div className="w-full h-full flex items-center justify-center text-[var(--muted)]">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                          <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
+                        </svg>
+                      </div>
                     )}
                     <div className="absolute top-2 left-2">
                       <Badge variant="sale" size="xs">

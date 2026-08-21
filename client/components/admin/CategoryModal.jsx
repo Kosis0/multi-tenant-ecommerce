@@ -36,11 +36,11 @@ export function CategoryModal({
         />
 
         <Input
-          label="Category Emoji / Icon Symbol"
+          label="Category Code / Short Tag"
           value={categoryIcon}
           onChange={(e) => setCategoryIcon(e.target.value)}
-          placeholder="e.g. 👠, 👗, 👜, 💍"
-          helperText="Optional emoji displayed on horizontal filter strips."
+          placeholder="e.g. SHOES, APPAREL, BAGS"
+          helperText="Optional department code for inventory categorization."
         />
 
         <div className="flex items-center justify-end gap-3 pt-4 border-t border-[var(--border)]">

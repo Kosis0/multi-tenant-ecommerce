@@ -235,7 +235,12 @@ export function ProductModal({
                     {productForm.image_url ? (
                       <Image src={productForm.image_url} alt="Preview" fill className="object-cover" sizes="80px" />
                     ) : (
-                      <div className="w-full h-full flex items-center justify-center text-2xl text-[var(--muted)]">📸</div>
+                      <div className="w-full h-full flex items-center justify-center text-[var(--muted)]">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                          <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
+                          <circle cx="12" cy="13" r="4"/>
+                        </svg>
+                      </div>
                     )}
                   </div>
 
@@ -260,7 +265,12 @@ export function ProductModal({
                         htmlFor="image-upload"
                         className="btn-clay-outline text-xs px-4 py-2 cursor-pointer inline-flex items-center gap-1.5"
                       >
-                        {uploadingImage ? 'Uploading Image...' : '📁 Upload Local File'}
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                          <polyline points="17 8 12 3 7 8"/>
+                          <line x1="12" y1="3" x2="12" y2="15"/>
+                        </svg>
+                        {uploadingImage ? 'Uploading Image...' : 'Upload Local File'}
                       </label>
                     </div>
                   </div>
@@ -365,9 +375,12 @@ export function ProductModal({
                           <button
                             type="button"
                             onClick={() => handleRemoveVariant(i)}
-                            className="text-red-500 hover:text-red-700 font-bold p-1"
+                            className="text-red-500 hover:text-red-700 font-bold p-1 cursor-pointer"
+                            aria-label="Remove variant"
                           >
-                            ✕
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                              <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+                            </svg>
                           </button>
                         </div>
                       </div>

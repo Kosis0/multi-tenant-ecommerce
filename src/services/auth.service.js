@@ -8,12 +8,12 @@ const { ROLES } = require('../constants/roles');
 const { BadRequestError, UnauthorizedError, ConflictError } = require('../errors');
 
 const DEFAULT_CATEGORIES = [
-  ['Phones', '📱'],
-  ['Computers', '💻'],
-  ['Smartwatch', '⌚'],
-  ['Camera', '📷'],
-  ['Headphones', '🎧'],
-  ['Gaming', '🎮']
+  ['Phones', 'PHONES'],
+  ['Computers', 'COMPUTERS'],
+  ['Smartwatch', 'WATCHES'],
+  ['Camera', 'CAMERAS'],
+  ['Headphones', 'AUDIO'],
+  ['Gaming', 'GAMING']
 ];
 
 /**

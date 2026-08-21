@@ -96,8 +96,8 @@ export function FilterToolbar({
               className="bg-transparent text-xs font-bold text-[var(--foreground)] outline-none cursor-pointer"
             >
               <option value="0" className="bg-[var(--surface)] text-[var(--foreground)]">All Ratings</option>
-              <option value="4" className="bg-[var(--surface)] text-[var(--foreground)]">★ 4.0 & Up</option>
-              <option value="4.5" className="bg-[var(--surface)] text-[var(--foreground)]">★ 4.5 & Up</option>
+              <option value="4" className="bg-[var(--surface)] text-[var(--foreground)]">4.0+ Stars</option>
+              <option value="4.5" className="bg-[var(--surface)] text-[var(--foreground)]">4.5+ Stars</option>
             </select>
           </div>
 
@@ -107,7 +107,10 @@ export function FilterToolbar({
               onClick={onResetFilters}
               className="text-xs font-bold uppercase tracking-wider text-[var(--accent-dark)] hover:underline flex items-center gap-1 cursor-pointer"
             >
-              ✕ Reset
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+              </svg>
+              <span>Reset</span>
             </button>
           )}
         </div>

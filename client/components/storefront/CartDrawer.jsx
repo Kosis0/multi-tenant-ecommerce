@@ -61,7 +61,10 @@ export function CartDrawer({
                 className="w-full flex items-center justify-between text-xs font-semibold text-[var(--foreground)]"
               >
                 <div className="flex items-center gap-2">
-                  <span>🏷️</span>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/>
+                    <line x1="7" y1="7" x2="7.01" y2="7"/>
+                  </svg>
                   <span>{appliedPromo ? `Promo Applied: ${appliedPromo.code}` : 'Add Promo Code'}</span>
                 </div>
                 <span className="text-[10px] text-[var(--muted)]">{isPromoOpen ? '▲' : '▼'}</span>
@@ -71,10 +74,15 @@ export function CartDrawer({
                 <div className="mt-3 pt-3 border-t border-[var(--border-light)] space-y-2">
                   {appliedPromo ? (
                     <div className="flex items-center justify-between bg-emerald-500/10 p-2 rounded-xl text-xs text-emerald-700 dark:text-emerald-300">
-                      <span>✓ {appliedPromo.label}</span>
+                      <span className="inline-flex items-center gap-1.5">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                          <polyline points="20 6 9 17 4 12"/>
+                        </svg>
+                        {appliedPromo.label}
+                      </span>
                       <button
                         onClick={onRemovePromo}
-                        className="text-red-500 font-bold hover:underline"
+                        className="text-red-500 font-bold hover:underline cursor-pointer"
                       >
                         Remove
                       </button>
@@ -166,8 +174,17 @@ export function CartDrawer({
           {/* Free Shipping Progress Meter */}
           <div className="p-3.5 rounded-2xl bg-[var(--card-clay)] border border-[var(--border)] space-y-2">
             <div className="flex items-center justify-between text-xs font-semibold">
-              <span className="text-[var(--foreground)]">
-                {isFreeShipping ? '🎉 You unlocked Free Delivery!' : `Add ${formatNaira(freeShippingRemaining)} for Free Delivery`}
+              <span className="text-[var(--foreground)] flex items-center gap-1.5">
+                {isFreeShipping ? (
+                  <>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="text-emerald-600">
+                      <polyline points="20 6 9 17 4 12"/>
+                    </svg>
+                    <span>You unlocked Free Delivery!</span>
+                  </>
+                ) : (
+                  `Add ${formatNaira(freeShippingRemaining)} for Free Delivery`
+                )}
               </span>
               <span className="text-[10px] text-[var(--muted)] font-mono">{freeShippingProgress}%</span>
             </div>
@@ -198,7 +215,13 @@ export function CartDrawer({
                     {item.image_url ? (
                       <Image src={item.image_url} alt={item.title} fill className="object-cover" sizes="64px" />
                     ) : (
-                      <div className="w-full h-full flex items-center justify-center text-xl">🛍️</div>
+                      <div className="w-full h-full flex items-center justify-center text-[var(--muted)]">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                          <path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/>
+                          <line x1="3" y1="6" x2="21" y2="6"/>
+                          <path d="M16 10a4 4 0 0 1-8 0"/>
+                        </svg>
+                      </div>
                     )}
                   </div>
 

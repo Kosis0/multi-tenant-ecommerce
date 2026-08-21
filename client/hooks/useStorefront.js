@@ -75,12 +75,12 @@ export function useStorefront(tenant, addToast) {
         hero_subtitle: 'Discover curated high-fashion silhouettes, artisan leather goods, and modern lifestyle essentials with seamless Naira checkout.',
       },
       categories: [
-        { id: 1, name: 'Shoes', icon: '👟' },
-        { id: 2, name: 'Apparel', icon: '👔' },
-        { id: 3, name: 'Bags', icon: '👜' },
-        { id: 4, name: 'Electronics', icon: '🎧' },
-        { id: 5, name: 'Accessories', icon: '🕶️' },
-        { id: 6, name: 'Jewelry', icon: '💍' },
+        { id: 1, name: 'Shoes' },
+        { id: 2, name: 'Apparel' },
+        { id: 3, name: 'Bags' },
+        { id: 4, name: 'Electronics' },
+        { id: 5, name: 'Accessories' },
+        { id: 6, name: 'Jewelry' },
       ],
       products: [
         {

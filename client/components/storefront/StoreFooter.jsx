@@ -88,8 +88,11 @@ export function StoreFooter({
             </p>
 
             {subscribed ? (
-              <div className="p-3 bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 text-xs rounded-2xl font-semibold">
-                ✓ Welcome to the private members circle!
+              <div className="p-3 bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 text-xs rounded-2xl font-semibold flex items-center gap-1.5">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                  <polyline points="20 6 9 17 4 12"/>
+                </svg>
+                <span>Welcome to the private members circle!</span>
               </div>
             ) : (
               <form onSubmit={handleSubscribe} className="flex gap-2 pt-1">

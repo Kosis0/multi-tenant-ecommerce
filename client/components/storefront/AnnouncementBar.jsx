@@ -3,7 +3,7 @@
 import React from 'react';
 
 export function AnnouncementBar({
-  message = '⚡ Flash Offer: Enjoy Complimentary Express Shipping on all orders above ₦50,000 across Nigeria',
+  message = 'Flash Offer: Enjoy Complimentary Express Shipping on all orders above ₦50,000 across Nigeria',
 }) {
   return (
     <aside aria-label="Store Announcement" className="w-full bg-[var(--accent-clay)] border-b border-[var(--border)] py-2 px-4 text-center">

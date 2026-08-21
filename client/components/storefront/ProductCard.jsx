@@ -65,8 +65,12 @@ export function ProductCard({
               sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
             />
           ) : (
-            <div className="w-full h-full flex items-center justify-center text-3xl text-[var(--muted)]">
-              🛍️
+            <div className="w-full h-full flex items-center justify-center text-[var(--muted)]">
+              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                <path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/>
+                <line x1="3" y1="6" x2="21" y2="6"/>
+                <path d="M16 10a4 4 0 0 1-8 0"/>
+              </svg>
             </div>
           )}
 
@@ -191,10 +195,12 @@ export function ProductCard({
               <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
             </svg>
           ) : addedSuccess ? (
-            <>
-              <span>✓</span>
+            <span className="inline-flex items-center gap-1">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
+                <polyline points="20 6 9 17 4 12"/>
+              </svg>
               <span className="hidden sm:inline">Added</span>
-            </>
+            </span>
           ) : isOutOfStock ? (
             'Sold Out'
           ) : (

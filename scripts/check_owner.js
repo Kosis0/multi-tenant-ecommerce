@@ -15,13 +15,13 @@ async function main() {
   for (const p of passwords) {
     const ok = await bcrypt.compare(p, user.password_hash);
     if (ok) {
-      console.log('✅ MATCH FOUND! Password is:', p);
+      console.log('[MATCH FOUND] Password is:', p);
       matched = true;
       break;
     }
   }
   if (!matched) {
-    console.log('❌ None of the common passwords matched the hash.');
+    console.log('[NO MATCH] None of the common passwords matched the hash.');
   }
   process.exit();
 }
