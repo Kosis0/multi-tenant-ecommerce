@@ -1,8 +1,15 @@
-# Mercato — Multi-Tenant E-Commerce Platform
+# Mercato — Scalable Multi-Tenant E-Commerce Platform
+
+[![Next.js](https://img.shields.io/badge/Next.js-16%20App%20Router-black?style=for-the-badge&logo=next.js&logoColor=white)](https://nextjs.org)
+[![React](https://img.shields.io/badge/React-19-61DAFB?style=for-the-badge&logo=react&logoColor=black)](https://react.dev)
+[![Express](https://img.shields.io/badge/Express.js-5.0-000000?style=for-the-badge&logo=express&logoColor=white)](https://expressjs.com)
+[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-Supabase-336791?style=for-the-badge&logo=postgresql&logoColor=white)](https://supabase.com)
+[![Stripe](https://img.shields.io/badge/Stripe-NGN%20%2F%20USD%20Checkout-635BFF?style=for-the-badge&logo=stripe&logoColor=white)](https://stripe.com)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=for-the-badge)](LICENSE)
 
 A production-grade, multi-tenant e-commerce platform built with Next.js (App Router, Tailwind CSS v4), Express.js, and PostgreSQL (Supabase).
 
-Provides dynamic tenant routing (`/[tenant]`), tenant boundary isolation, merchant onboarding, custom store category management, live flash sales countdowns, customer product reviews, product detail gallery modals, wishlist, slide-out cart drawers, Naira (₦) currency formatting, and a store owner dashboard with analytics.
+Provides dynamic tenant routing (`/[tenant]`), tenant boundary isolation, merchant onboarding, custom store category management, live flash sales countdowns, customer product reviews, product detail gallery modals, wishlist, slide-out cart drawers, dual-currency Stripe checkout, and a store owner dashboard with analytics.
 
 ---
 
@@ -166,6 +173,16 @@ The frontend starts on `http://localhost:3000`.
 - **Backend**: Render / Railway (`node server.js`)
 - **Frontend**: Vercel (Root directory: `client`)
 
-- **Database**: Supabase PostgreSQL (Cloud)
-- **Backend**: Render / Railway (`node server.js`)
-- **Frontend**: Vercel (Root directory: `client`)
+---
+
+## 🧑‍💻 Author
+**Kosi Udeh (Udeh Kosisochukwu Emmanuel)**  
+*Full-Stack Developer & Systems Architect*  
+* **Portfolio:** [portfolio-lac-seven-pykd0ipign.vercel.app](https://portfolio-lac-seven-pykd0ipign.vercel.app)  
+* **GitHub:** [@Kosis0](https://github.com/Kosis0)  
+* **Contact:** [kosiudeh627@gmail.com](mailto:kosiudeh627@gmail.com) | [+234 911 795 0895](https://wa.me/2349117950895)
+
+---
+
+## 📜 License
+Distributed under the **MIT License**. See `LICENSE` for details.
