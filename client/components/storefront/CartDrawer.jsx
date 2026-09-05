@@ -53,7 +53,7 @@ export function CartDrawer({
       maxWidth="max-w-md"
       footer={
         cart.length > 0 ? (
-          <div className="space-y-4">
+          <div className="space-y-4 pb-[env(safe-area-inset-bottom,0px)]">
             {/* Promo Code Drawer Accordion */}
             <div className="border border-[var(--border)] rounded-2xl p-3 bg-[var(--surface)]">
               <button
